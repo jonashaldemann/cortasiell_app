@@ -287,9 +287,7 @@ function zeigeAbschluss() {
 ${JSON.stringify(inventur, null, 2)}
         </pre>
 
-        <button onclick="synchronisieren()">
-            Jetzt (erneut) synchronisieren
-        </button>
+        <p>Zum Synchronisieren die Leiste unten verwenden.</p>
     `;
 
 }
@@ -338,11 +336,11 @@ window.addEventListener("online", () => {
 
 async function synchronisieren() {
 
-    if (!abgeschlossen) {
+    if (inventur.length === 0) {
 
-        // Sicherheitsnetz: ohne abgeschlossene Inventur gibt's nichts
-        // zu synchronisieren (z.B. falls die Funktion versehentlich
-        // zu früh aufgerufen wird).
+        // Noch keine einzige Antwort vorhanden – nichts zu senden.
+        zeigeSyncStatus("Noch keine Antworten zum Synchronisieren.");
+
         return;
     }
 
@@ -368,9 +366,30 @@ async function synchronisieren() {
 
         if (bestaetigt) {
 
-            zeigeSyncStatus("Inventur übertragen ✅ (bestätigt)");
+            const zeitpunkt = new Date().toLocaleTimeString(
+                "de-CH",
+                { hour: "2-digit", minute: "2-digit" }
+            );
 
-            synchronisiert = true;
+            if (abgeschlossen) {
+
+                zeigeSyncStatus(
+                    `Inventur übertragen ✅ (bestätigt, ${zeitpunkt})`
+                );
+
+                synchronisiert = true;
+
+            } else {
+
+                // Teil-Sicherung mitten in der Inventur: die bisher
+                // beantworteten Fragen sind sicher im Sheet, das
+                // Ausfüllen geht danach normal weiter.
+                zeigeSyncStatus(
+                    `Zwischenstand gesichert (${zeitpunkt}) – ` +
+                    `${inventur.length} von ${fragen.length} beantwortet.`
+                );
+
+            }
 
             speichereZustand();
 
@@ -378,11 +397,11 @@ async function synchronisieren() {
 
             zeigeSyncStatus(
                 "⚠️ Gesendet, aber nicht bestätigt – vermutlich " +
-                "keine oder eine instabile Verbindung. Die Inventur " +
-                "bleibt lokal gespeichert und wird beim nächsten " +
+                "keine oder eine instabile Verbindung. Die Daten " +
+                "bleiben lokal gespeichert und werden beim nächsten " +
                 "Öffnen der App bzw. sobald wieder Netz da ist, " +
                 "automatisch erneut versucht. Du kannst es auch " +
-                "jederzeit oben über den Button erneut versuchen."
+                "jederzeit über den Button unten erneut versuchen."
             );
 
         }
@@ -392,8 +411,8 @@ async function synchronisieren() {
         console.error(error);
 
         zeigeSyncStatus(
-            "❌ Verbindung derzeit nicht möglich. Die Inventur " +
-            "bleibt lokal gespeichert – bitte später erneut " +
+            "❌ Verbindung derzeit nicht möglich. Die Daten " +
+            "bleiben lokal gespeichert – bitte später erneut " +
             "versuchen, sobald wieder Netz vorhanden ist."
         );
 
