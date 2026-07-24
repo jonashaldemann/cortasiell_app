@@ -163,7 +163,7 @@ function zeigeFrage() {
     if (typ === "Menge") {
 
         document.getElementById("frage").innerHTML = `
-            <h2>${frage.produkt}</h2>
+            <h2><span class="produkt">${frage.produkt}</span></h2>
 
             <p>Einheit: ${frage.einheit}</p>
 
@@ -182,22 +182,25 @@ function zeigeFrage() {
 
     } else {
 
-        let frageText = frage.produkt;
+        const produktSpan =
+            `<span class="produkt">${frage.produkt}</span>`;
+
+        let frageText = produktSpan;
 
         if (typ === "vorhanden") {
 
             frageText =
-                `${frage.produkt} vorhanden?`;
+                `${produktSpan} vorhanden?`;
 
         } else if (typ === "genügend") {
 
             frageText =
-                `Genügend ${frage.produkt} vorhanden?`;
+                `Genügend ${produktSpan} vorhanden?`;
 
         } else if (!isNaN(Number(typ))) {
 
             frageText =
-                `Mindestens ${typ} ${frage.einheit} ${frage.produkt} vorhanden?`;
+                `Mindestens ${typ} ${frage.einheit} ${produktSpan} vorhanden?`;
 
         }
 
