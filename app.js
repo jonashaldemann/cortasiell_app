@@ -172,6 +172,7 @@ function zeigeFrage() {
                 id="anzahlFeld"
                 value="${frage.info || 0}"
                 min="0"
+                onfocus="this.select()"
             >
 
             <button onclick="speichereAnzahl()">
@@ -186,17 +187,17 @@ function zeigeFrage() {
         if (typ === "vorhanden") {
 
             frageText =
-                `Ist ${frage.produkt} vorhanden?`;
+                `${frage.produkt} vorhanden?`;
 
         } else if (typ === "genügend") {
 
             frageText =
-                `Ist genügend ${frage.produkt} vorhanden?`;
+                `Genügend ${frage.produkt} vorhanden?`;
 
         } else if (!isNaN(Number(typ))) {
 
             frageText =
-                `Sind mindestens ${typ} ${frage.einheit} ${frage.produkt} vorhanden?`;
+                `Mindestens ${typ} ${frage.einheit} ${frage.produkt} vorhanden?`;
 
         }
 
