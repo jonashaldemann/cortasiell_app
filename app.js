@@ -1,13 +1,14 @@
 console.log("App gestartet");
 
+// Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
+const APPS_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbwdZBxC06VO1axmdQWzqdocAr0I2lCKne-s5NC1YM-GW4LPJGRFzwjyjd-oo1lcFfS_ZQ/exec";
+
 let inventur = [];
 
 async function ladeFragen() {
 
-    const url =
-        "https://script.google.com/macros/s/AKfycbzU2YazqTp3G-cWCZtnmCg8jE2xWcbqiSYzSpLJCti0Ymsf7HKys3tbuRt_w5gJcprWfg/exec";
-
-    const response = await fetch(url);
+    const response = await fetch(APPS_SCRIPT_URL);
 
     fragen = await response.json();
 
@@ -203,17 +204,9 @@ if ("serviceWorker" in navigator) {
 
 async function synchronisieren() {
 
-    const url =
-        "https://script.google.com/macros/s/AKfycbwyULYD24vxZhq4wL0vdhqBgeMh9bqAeFl-ztSVnJcUb8G145OzfPaefyrtEeEjLuf7hg/exec";
-
-    // Eindeutige ID für diese Übertragung, damit wir sie später
-    // im Sheet wiederfinden und bestätigen können.
-    const syncId =
-        "sync_" + Date.now() + "_" +
-        Math.random().toString(36).slice(2, 8);
+    const url = APPS_SCRIPT_URL;
 
     const payload = {
-        id: syncId,
         daten: inventur
     };
 
@@ -229,7 +222,7 @@ async function synchronisieren() {
             body: JSON.stringify(payload)
         });
 
-        const bestaetigt = await warteAufBestaetigung(url, syncId);
+        const bestaetigt = await warteAufBestaetigung(url, inventur);
 
         if (bestaetigt) {
 
@@ -259,9 +252,10 @@ async function synchronisieren() {
 
 }
 
-// Fragt per doGet (normaler, unproblematischer Cross-Origin-GET)
-// wiederholt nach, ob die gesendete ID im Sheet angekommen ist.
-async function warteAufBestaetigung(url, syncId, versuche = 5, wartezeitMs = 1500) {
+// Lädt die aktuellen Daten per doGet neu (normaler, unproblematischer
+// Cross-Origin-GET) und prüft, ob die gerade gesendeten Werte in den
+// betroffenen Zeilen wirklich im Sheet angekommen sind.
+async function warteAufBestaetigung(url, erwarteteEintraege, versuche = 5, wartezeitMs = 1500) {
 
     for (let i = 0; i < versuche; i++) {
 
@@ -269,13 +263,21 @@ async function warteAufBestaetigung(url, syncId, versuche = 5, wartezeitMs = 150
 
         try {
 
-            const antwort = await fetch(
-                url + "?checkId=" + encodeURIComponent(syncId)
-            );
+            const antwort = await fetch(url);
+            const aktuelleDaten = await antwort.json();
 
-            const text = (await antwort.text()).trim();
+            const passtAlles = erwarteteEintraege.every(eintrag => {
 
-            if (text === "OK") {
+                const zeile = aktuelleDaten.find(
+                    f => f.zeile === eintrag.zeile
+                );
+
+                return zeile &&
+                    String(zeile.info) === String(eintrag.wert);
+
+            });
+
+            if (passtAlles) {
                 return true;
             }
 
