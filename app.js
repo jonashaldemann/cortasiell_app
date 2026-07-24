@@ -4,24 +4,138 @@ console.log("App gestartet");
 const APPS_SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbxz9ezqUcnigot43I0kKKG7kX9gdtqiuwMqvDNzVNTOH9H61oAsFOl3aEIxZRZIdGf8VQ/exec";
 
-let inventur = [];
-
-async function ladeFragen() {
-
-    const response = await fetch(APPS_SCRIPT_URL);
-
-    fragen = await response.json();
-
-    console.log("Fragen geladen:", fragen);
-
-    zeigeFrage();
-}
+// Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
+const ZUSTAND_KEY = "cortasiell_zustand";
+const FRAGEN_CACHE_KEY = "cortasiell_fragen_cache";
 
 let fragen = [];
-
+let inventur = [];
 let aktuelleFrage = 0;
+let abgeschlossen = false;
+let synchronisiert = false;
 
-ladeFragen();
+init();
+
+async function init() {
+
+    await ladeFragenMitCache();
+
+    ladeZustand();
+
+    if (abgeschlossen && !synchronisiert) {
+
+        // Es liegt eine fertig ausgefüllte, aber noch nicht
+        // bestätigt synchronisierte Inventur vor (z.B. weil beim
+        // letzten Mal die Verbindung abgerissen ist). Nicht neu
+        // starten, sondern gleich wieder synchronisieren versuchen.
+        zeigeAbschluss();
+        synchronisieren();
+
+    } else if (abgeschlossen && synchronisiert) {
+
+        // Letzte Inventur ist erfolgreich durch. Sauberer Neustart.
+        inventur = [];
+        aktuelleFrage = 0;
+        abgeschlossen = false;
+        synchronisiert = false;
+
+        speichereZustand();
+
+        zeigeFrage();
+
+    } else {
+
+        // Laufende, noch nicht abgeschlossene Inventur fortsetzen
+        // (oder ganz neu beginnen, falls nichts gespeichert war).
+        zeigeFrage();
+
+    }
+
+}
+
+async function ladeFragenMitCache() {
+
+    try {
+
+        const response = await fetch(APPS_SCRIPT_URL);
+
+        fragen = await response.json();
+
+        localStorage.setItem(
+            FRAGEN_CACHE_KEY,
+            JSON.stringify(fragen)
+        );
+
+        console.log("Fragen online geladen und zwischengespeichert:", fragen);
+
+    } catch (error) {
+
+        console.warn(
+            "Fragen konnten nicht online geladen werden, versuche Cache:",
+            error
+        );
+
+        const cache = localStorage.getItem(FRAGEN_CACHE_KEY);
+
+        if (cache) {
+
+            fragen = JSON.parse(cache);
+
+            console.log("Fragen aus lokalem Cache geladen:", fragen);
+
+        } else {
+
+            fragen = [];
+
+            zeigeFehler(
+                "Keine Internetverbindung und keine gespeicherten " +
+                "Fragen vorhanden. Bitte einmal mit Internetverbindung " +
+                "starten, damit die Fragen lokal gespeichert werden."
+            );
+
+        }
+
+    }
+
+}
+
+function ladeZustand() {
+
+    const gespeichert = localStorage.getItem(ZUSTAND_KEY);
+
+    if (!gespeichert) {
+        return;
+    }
+
+    const zustand = JSON.parse(gespeichert);
+
+    inventur = zustand.inventur || [];
+    aktuelleFrage = zustand.aktuelleFrage || 0;
+    abgeschlossen = zustand.abgeschlossen || false;
+    synchronisiert = zustand.synchronisiert || false;
+
+}
+
+function speichereZustand() {
+
+    localStorage.setItem(
+        ZUSTAND_KEY,
+        JSON.stringify({
+            inventur,
+            aktuelleFrage,
+            abgeschlossen,
+            synchronisiert
+        })
+    );
+
+}
+
+function zeigeFehler(text) {
+
+    document.getElementById("frage").innerHTML =
+        `<h2>⚠️ ${text}</h2>`;
+
+}
 
 function zeigeFrage() {
 
@@ -34,20 +148,6 @@ function zeigeFrage() {
 
     const frage = fragen[aktuelleFrage];
 
-    console.log(frage);
-
-    console.log(
-        "Typ:",
-        "[" + frage.erfassungstyp + "]"
-    );
-
-
-    console.log(
-        frage.produkt,
-        frage.erfassungstyp,
-        typeof frage.erfassungstyp
-    );
-
     document.getElementById("fortschritt").innerHTML =
         "Schritt " +
         (aktuelleFrage + 1) +
@@ -57,8 +157,8 @@ function zeigeFrage() {
     document.getElementById("ort").innerHTML =
         frage.ort;
 
-const typ =
-    String(frage.erfassungstyp).trim();
+    const typ =
+        String(frage.erfassungstyp).trim();
 
     if (typ === "Menge") {
 
@@ -107,7 +207,7 @@ const typ =
 
             <button onclick="antwortNein()">Nein</button>
         `;
-    }    
+    }
 
 }
 
@@ -118,6 +218,7 @@ function antwortJa() {
         zeile: fragen[aktuelleFrage].zeile,
         wert: "ja"
     });
+
     naechsteFrage();
 }
 
@@ -132,36 +233,6 @@ function antwortNein() {
     naechsteFrage();
 }
 
-function naechsteFrage() {
-
-    aktuelleFrage++;
-
-    if (aktuelleFrage < fragen.length) {
-
-        zeigeFrage();
-
-    } else {
-
-        localStorage.setItem(
-            "cortasiell_inventar",
-            JSON.stringify(inventur)
-        );
-
-        document.getElementById("frage").innerHTML = `
-            <h2>Inventur abgeschlossen ✅</h2>
-
-            <pre>
-${JSON.stringify(inventur, null, 2)}
-            </pre>
-
-            <button onclick="synchronisieren()">
-                Synchronisieren
-            </button>
-        `;
-    }
-
-}
-
 function speichereAnzahl() {
 
     const wert =
@@ -173,6 +244,54 @@ function speichereAnzahl() {
     });
 
     naechsteFrage();
+}
+
+function naechsteFrage() {
+
+    aktuelleFrage++;
+
+    if (aktuelleFrage < fragen.length) {
+
+        // Nach jeder einzelnen Antwort sofort sichern – so geht bei
+        // einem Absturz/Tab-Kill höchstens die aktuelle Frage
+        // verloren, nie der bisherige Fortschritt.
+        speichereZustand();
+
+        zeigeFrage();
+
+    } else {
+
+        abgeschlossen = true;
+        synchronisiert = false;
+
+        speichereZustand();
+
+        zeigeAbschluss();
+
+        // Gleich den ersten Sync-Versuch anstossen. Klappt er nicht
+        // (kein Netz, Verbindungsabbruch), bleibt die Inventur als
+        // "pending" gespeichert und wird beim nächsten App-Start
+        // bzw. sobald wieder Netz da ist, automatisch erneut versucht.
+        synchronisieren();
+
+    }
+
+}
+
+function zeigeAbschluss() {
+
+    document.getElementById("frage").innerHTML = `
+        <h2>Inventur abgeschlossen ✅</h2>
+
+        <pre>
+${JSON.stringify(inventur, null, 2)}
+        </pre>
+
+        <button onclick="synchronisieren()">
+            Jetzt (erneut) synchronisieren
+        </button>
+    `;
+
 }
 
 function zeigeSpeicher() {
@@ -202,7 +321,30 @@ if ("serviceWorker" in navigator) {
 
 }
 
+// Sobald der Browser erkennt, dass wieder Netz da ist (während die
+// App offen ist), automatisch einen neuen Sync-Versuch anstossen,
+// falls noch eine unsynchronisierte Inventur aussteht.
+window.addEventListener("online", () => {
+
+    if (abgeschlossen && !synchronisiert) {
+
+        console.log("Verbindung wiederhergestellt – versuche erneut zu synchronisieren.");
+
+        synchronisieren();
+
+    }
+
+});
+
 async function synchronisieren() {
+
+    if (!abgeschlossen) {
+
+        // Sicherheitsnetz: ohne abgeschlossene Inventur gibt's nichts
+        // zu synchronisieren (z.B. falls die Funktion versehentlich
+        // zu früh aufgerufen wird).
+        return;
+    }
 
     const url = APPS_SCRIPT_URL;
 
@@ -228,16 +370,19 @@ async function synchronisieren() {
 
             zeigeSyncStatus("Inventur übertragen ✅ (bestätigt)");
 
-            localStorage.setItem(
-                "synchronisiert",
-                "ja"
-            );
+            synchronisiert = true;
+
+            speichereZustand();
 
         } else {
 
             zeigeSyncStatus(
-                "⚠️ Gesendet, aber nicht bestätigt. " +
-                "Bitte später erneut versuchen."
+                "⚠️ Gesendet, aber nicht bestätigt – vermutlich " +
+                "keine oder eine instabile Verbindung. Die Inventur " +
+                "bleibt lokal gespeichert und wird beim nächsten " +
+                "Öffnen der App bzw. sobald wieder Netz da ist, " +
+                "automatisch erneut versucht. Du kannst es auch " +
+                "jederzeit oben über den Button erneut versuchen."
             );
 
         }
@@ -246,7 +391,11 @@ async function synchronisieren() {
 
         console.error(error);
 
-        zeigeSyncStatus("❌ Fehler beim Senden: " + error);
+        zeigeSyncStatus(
+            "❌ Verbindung derzeit nicht möglich. Die Inventur " +
+            "bleibt lokal gespeichert – bitte später erneut " +
+            "versuchen, sobald wieder Netz vorhanden ist."
+        );
 
     }
 
@@ -254,7 +403,10 @@ async function synchronisieren() {
 
 // Lädt die aktuellen Daten per doGet neu (normaler, unproblematischer
 // Cross-Origin-GET) und prüft, ob die gerade gesendeten Werte in den
-// betroffenen Zeilen wirklich im Sheet angekommen sind.
+// betroffenen Zeilen wirklich im Sheet angekommen sind. Das Verfahren
+// ist idempotent: mehrfaches Senden derselben Inventur überschreibt
+// dieselben Zeilen einfach erneut mit denselben Werten – schadet also
+// nicht, falls ein Sync-Versuch mehrfach nötig ist.
 async function warteAufBestaetigung(url, erwarteteEintraege, versuche = 5, wartezeitMs = 1500) {
 
     for (let i = 0; i < versuche; i++) {
