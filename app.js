@@ -228,9 +228,8 @@ function zeigeFrage() {
     const frage = fragen[aktuelleFrage];
 
     document.getElementById("fortschritt").innerHTML =
-        "Schritt " +
         (aktuelleFrage + 1) +
-        " von " +
+        " / " +
         fragen.length;
 
     document.getElementById("ort").innerHTML =
