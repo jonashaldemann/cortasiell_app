@@ -2,7 +2,7 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbwdZBxC06VO1axmdQWzqdocAr0I2lCKne-s5NC1YM-GW4LPJGRFzwjyjd-oo1lcFfS_ZQ/exec";
+    "https://script.google.com/macros/s/AKfycbxz9ezqUcnigot43I0kKKG7kX9gdtqiuwMqvDNzVNTOH9H61oAsFOl3aEIxZRZIdGf8VQ/exec";
 
 let inventur = [];
 
