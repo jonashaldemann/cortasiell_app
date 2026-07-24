@@ -2,17 +2,29 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbx93UgnapNjhqjQXSEuzVe5vzENz43VRTTFTGmQGEdYAPRDrc_WSf2P0T7rqIWt5C7Bkw/exec";
+    "https://script.google.com/macros/s/AKfycbyu32EMYI3qNcifPw42J9rrdSjavNY0NGUvMqZduEFMBOyTlhJrnsUXiiBSFwmVT94uLQ/exec";
 
 // Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
 const ZUSTAND_KEY = "cortasiell_zustand";
 const FRAGEN_CACHE_KEY = "cortasiell_fragen_cache";
 
+// Additive Hierarchie: "alle Vorräte" enthält automatisch "nur das
+// nötigste", "inkl. Einrichtung" enthält automatisch beides davor.
+// Die Strings müssen exakt so auch in der Spalte "Inventartyp" im
+// Google Sheet stehen.
+const UMFANG_STUFEN = [
+    "nur das nötigste",
+    "alle Vorräte",
+    "inkl. Einrichtung"
+];
+
+let alleFragen = [];
 let fragen = [];
 let inventur = [];
 let aktuelleFrage = 0;
 let abgeschlossen = false;
 let synchronisiert = false;
+let umfang = null;
 
 init();
 
@@ -21,6 +33,10 @@ async function init() {
     await ladeFragenMitCache();
 
     ladeZustand();
+
+    if (umfang) {
+        fragen = filtereFragenNachUmfang(alleFragen, umfang);
+    }
 
     if (abgeschlossen && !synchronisiert) {
 
@@ -33,23 +49,84 @@ async function init() {
 
     } else if (abgeschlossen && synchronisiert) {
 
-        // Letzte Inventur ist erfolgreich durch. Sauberer Neustart.
+        // Letzte Inventur ist erfolgreich durch. Sauberer Neustart,
+        // inkl. erneuter Abfrage des gewünschten Umfangs.
         inventur = [];
         aktuelleFrage = 0;
         abgeschlossen = false;
         synchronisiert = false;
+        umfang = null;
 
         speichereZustand();
 
-        zeigeFrage();
+        zeigeUmfangAuswahl();
+
+    } else if (!umfang) {
+
+        // Ganz neue Session, es wurde noch kein Umfang gewählt.
+        zeigeUmfangAuswahl();
 
     } else {
 
-        // Laufende, noch nicht abgeschlossene Inventur fortsetzen
-        // (oder ganz neu beginnen, falls nichts gespeichert war).
+        // Laufende, noch nicht abgeschlossene Inventur fortsetzen.
         zeigeFrage();
 
     }
+
+}
+
+function filtereFragenNachUmfang(liste, gewaehlterUmfang) {
+
+    const gewaehlterIndex = UMFANG_STUFEN.indexOf(gewaehlterUmfang);
+
+    return liste.filter(f => {
+
+        const typIndex = UMFANG_STUFEN.indexOf(
+            String(f.inventartyp).trim()
+        );
+
+        return typIndex !== -1 && typIndex <= gewaehlterIndex;
+
+    });
+
+}
+
+function zeigeUmfangAuswahl() {
+
+    document.getElementById("fortschritt").innerHTML = "";
+    document.getElementById("ort").innerHTML = "";
+
+    document.getElementById("frage").innerHTML = `
+        <h2>Was möchtest du prüfen?</h2>
+
+        <button onclick="waehleUmfang('nur das nötigste')">
+            Nur das Nötigste
+        </button>
+
+        <button onclick="waehleUmfang('alle Vorräte')">
+            Alle Vorräte
+        </button>
+
+        <button onclick="waehleUmfang('inkl. Einrichtung')">
+            Inkl. Einrichtung
+        </button>
+    `;
+
+}
+
+function waehleUmfang(gewaehlterUmfang) {
+
+    umfang = gewaehlterUmfang;
+    fragen = filtereFragenNachUmfang(alleFragen, umfang);
+
+    inventur = [];
+    aktuelleFrage = 0;
+    abgeschlossen = false;
+    synchronisiert = false;
+
+    speichereZustand();
+
+    zeigeFrage();
 
 }
 
@@ -59,14 +136,14 @@ async function ladeFragenMitCache() {
 
         const response = await fetch(APPS_SCRIPT_URL);
 
-        fragen = await response.json();
+        alleFragen = await response.json();
 
         localStorage.setItem(
             FRAGEN_CACHE_KEY,
-            JSON.stringify(fragen)
+            JSON.stringify(alleFragen)
         );
 
-        console.log("Fragen online geladen und zwischengespeichert:", fragen);
+        console.log("Fragen online geladen und zwischengespeichert:", alleFragen);
 
     } catch (error) {
 
@@ -79,13 +156,13 @@ async function ladeFragenMitCache() {
 
         if (cache) {
 
-            fragen = JSON.parse(cache);
+            alleFragen = JSON.parse(cache);
 
-            console.log("Fragen aus lokalem Cache geladen:", fragen);
+            console.log("Fragen aus lokalem Cache geladen:", alleFragen);
 
         } else {
 
-            fragen = [];
+            alleFragen = [];
 
             zeigeFehler(
                 "Keine Internetverbindung und keine gespeicherten " +
@@ -113,6 +190,7 @@ function ladeZustand() {
     aktuelleFrage = zustand.aktuelleFrage || 0;
     abgeschlossen = zustand.abgeschlossen || false;
     synchronisiert = zustand.synchronisiert || false;
+    umfang = zustand.umfang || null;
 
 }
 
@@ -124,7 +202,8 @@ function speichereZustand() {
             inventur,
             aktuelleFrage,
             abgeschlossen,
-            synchronisiert
+            synchronisiert,
+            umfang
         })
     );
 

@@ -18,7 +18,8 @@ function doGet() {
       produkt: daten[i][1],
       erfassungstyp: daten[i][2],
       info: daten[i][3],
-      einheit: daten[i][4]
+      einheit: daten[i][4],
+      inventartyp: daten[i][5]
     });
 
   }
@@ -35,12 +36,16 @@ function doGet() {
 
 function doPost(e) {
 
-  const payload = JSON.parse(e.postData.contents);
-  const daten = payload.daten;
+  const payload =
+    JSON.parse(e.postData.contents);
 
-  const sheet = SpreadsheetApp
-    .getActiveSpreadsheet()
-    .getSheetByName("Inventurdaten");
+  const daten =
+    payload.daten;
+
+  const sheet =
+    SpreadsheetApp
+      .getActiveSpreadsheet()
+      .getSheetByName("Inventurdaten");
 
   daten.forEach(eintrag => {
 
@@ -49,16 +54,19 @@ function doPost(e) {
       .getRange(eintrag.zeile, 4)
       .setValue(eintrag.wert);
 
-    // Spalte F = Letzte Inventur (Datum + Uhrzeit)
+    // Spalte F = Inventartyp (wird manuell im Sheet gepflegt, hier nicht beschrieben)
+
+    // Spalte G = Letzte Inventur (Datum + Uhrzeit)
     const zeitstempelZelle =
-      sheet.getRange(eintrag.zeile, 6);
+      sheet.getRange(eintrag.zeile, 7);
 
     zeitstempelZelle.setValue(new Date());
     zeitstempelZelle.setNumberFormat("dd.MM.yyyy HH:mm");
 
   });
 
-  return ContentService.createTextOutput("POST OK");
+  return ContentService
+    .createTextOutput("POST OK");
 }
 
 
@@ -69,12 +77,13 @@ function testDaten() {
         .getSheetByName("Inventurdaten");
 
     sheet.appendRow([
-        "test_" + new Date().getTime(),
-        new Date(),
+        "Testort",
+        "Testprodukt",
+        "vorhanden",
         "ja",
-        "nein",
-        2
+        "Stk",
+        "nur das nötigste",
+        new Date()
     ]);
 
 }
-
