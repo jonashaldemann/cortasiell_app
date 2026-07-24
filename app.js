@@ -265,6 +265,8 @@ function zeigeFrage() {
 
         let frageText = produktSpan;
 
+        let zeigeUnveraendert = false;
+
         if (typ === "vorhanden") {
 
             frageText =
@@ -275,24 +277,53 @@ function zeigeFrage() {
             frageText =
                 `Genügend ${produktSpan} vorhanden?`;
 
+            zeigeUnveraendert = true;
+
         } else if (!isNaN(Number(typ))) {
 
             frageText =
                 `Mindestens ${typ} ${frage.einheit} ${produktSpan} vorhanden?`;
 
+            zeigeUnveraendert = true;
+
         }
+
+        // "Unverändert" nur anbieten, wenn es überhaupt einen
+        // bisherigen Wert gibt, den man übernehmen könnte.
+        const bisherigerWert =
+            String(frage.info || "").trim();
+
+        const unveraendertButton =
+            (zeigeUnveraendert && bisherigerWert) ? `
+                <button onclick="antwortUnveraendert()">
+                    Unverändert (${bisherigerWert})
+                </button>
+            ` : "";
 
         document.getElementById("frage").innerHTML = `
             <h2>${frageText}</h2>
 
-            <button onclick="antwortJa()">Ja</button>
+            ${unveraendertButton}
 
-            <button onclick="antwortNein()">Nein</button>
+            <div class="ja-nein-reihe">
+                <button onclick="antwortJa()">Ja</button>
+                <button onclick="antwortNein()">Nein</button>
+            </div>
         `;
     }
 
 }
 
+
+function antwortUnveraendert() {
+
+    inventur.push({
+        zeile: fragen[aktuelleFrage].zeile,
+        wert: fragen[aktuelleFrage].info
+    });
+
+    naechsteFrage();
+}
 
 function antwortJa() {
 

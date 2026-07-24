@@ -132,6 +132,16 @@ button:hover {
     background: #256528;
 }
 
+.ja-nein-reihe {
+    display: flex;
+    gap: 10px;
+}
+
+.ja-nein-reihe button {
+    width: auto;
+    flex: 1;
+}
+
 input[type="number"] {
     width: 100%;
 
