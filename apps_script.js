@@ -35,16 +35,12 @@ function doGet() {
 
 function doPost(e) {
 
-  const payload =
-    JSON.parse(e.postData.contents);
+  const payload = JSON.parse(e.postData.contents);
+  const daten = payload.daten;
 
-  const daten =
-    payload.daten;
-
-  const sheet =
-    SpreadsheetApp
-      .getActiveSpreadsheet()
-      .getSheetByName("Inventurdaten");
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Inventurdaten");
 
   daten.forEach(eintrag => {
 
@@ -53,15 +49,16 @@ function doPost(e) {
       .getRange(eintrag.zeile, 4)
       .setValue(eintrag.wert);
 
-    // Spalte F = Letzte Inventur
-    sheet
-      .getRange(eintrag.zeile, 6)
-      .setValue(new Date());
+    // Spalte F = Letzte Inventur (Datum + Uhrzeit)
+    const zeitstempelZelle =
+      sheet.getRange(eintrag.zeile, 6);
+
+    zeitstempelZelle.setValue(new Date());
+    zeitstempelZelle.setNumberFormat("dd.MM.yyyy HH:mm");
 
   });
 
-  return ContentService
-    .createTextOutput("POST OK");
+  return ContentService.createTextOutput("POST OK");
 }
 
 

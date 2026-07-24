@@ -2,7 +2,7 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbxz9ezqUcnigot43I0kKKG7kX9gdtqiuwMqvDNzVNTOH9H61oAsFOl3aEIxZRZIdGf8VQ/exec";
+    "https://script.google.com/macros/s/AKfycbx93UgnapNjhqjQXSEuzVe5vzENz43VRTTFTGmQGEdYAPRDrc_WSf2P0T7rqIWt5C7Bkw/exec";
 
 // Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
 const ZUSTAND_KEY = "cortasiell_zustand";
