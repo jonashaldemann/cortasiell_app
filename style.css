@@ -83,7 +83,7 @@ body {
 
 h1 {
     font-family: "Nudica-Medium", sans-serif;
-    font-size: 2rem;
+    font-size: 1.6rem;
     margin-bottom: 10px;
 }
 
@@ -93,8 +93,14 @@ h1 {
 
 #ort {
     font-size: 1.3rem;
-    color: #888;
+    color: #1a1a1a;
+    font-weight: bold;
     margin-bottom: 15px;
+}
+
+.einheit-text {
+    font-size: 0.85rem;
+    color: #888;
 }
 
 #fortschritt {
@@ -111,9 +117,9 @@ h2 {
 button {
     width: 100%;
 
-    padding: 15px;
+    padding: 12px;
 
-    margin-top: 10px;
+    margin-top: 8px;
 
     border: none;
     border-radius: 12px;
@@ -122,11 +128,11 @@ button {
     color: white;
 
     font-family: "Nudica-Medium", sans-serif;
-    font-size: 1.3rem;
+    font-size: 1.04rem;
     font-weight: bold;
 
     cursor: pointer;
-    min-height: 60px;
+    min-height: 48px;
 }
 
 button:hover {
@@ -215,7 +221,7 @@ pre {
     }
 
     h1 {
-        font-size: 2.4rem;
+        font-size: 1.92rem;
     }
 
     h2 {
@@ -223,8 +229,8 @@ pre {
     }
 
     button {
-        font-size: 1.4rem;
-        min-height: 70px;
+        font-size: 1.12rem;
+        min-height: 56px;
     }
 
     input[type="number"] {

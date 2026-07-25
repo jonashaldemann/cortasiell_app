@@ -233,9 +233,8 @@ function zeigeFrage() {
     const frage = fragen[aktuelleFrage];
 
     document.getElementById("fortschritt").innerHTML =
-        "Schritt " +
         (aktuelleFrage + 1) +
-        " von " +
+        " / " +
         fragen.length;
 
     document.getElementById("ort").innerHTML =
@@ -249,7 +248,7 @@ function zeigeFrage() {
         document.getElementById("frage").innerHTML = `
             <h2><span class="produkt">${frage.produkt}</span></h2>
 
-            <p>Einheit: ${frage.einheit}</p>
+            <p class="einheit-text">Einheit: ${frage.einheit}</p>
 
             <input
                 type="number"
@@ -261,6 +260,10 @@ function zeigeFrage() {
 
             <button onclick="speichereAnzahl()">
                 Speichern & Weiter
+            </button>
+
+            <button onclick="zeigeNeuerEintragFormular()" class="neuer-eintrag-button">
+                ➕ Neuer Eintrag
             </button>
         `;
 
