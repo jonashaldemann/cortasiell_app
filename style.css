@@ -106,14 +106,12 @@ h1 {
 #fortschritt {
     display: flex;
     align-items: center;
+    justify-content: center;
+    gap: 10px;
 
     margin-bottom: 20px;
     color: #888;
     font-size: 0.9rem;
-}
-
-.fortschritt-zaehler {
-    margin-left: auto;
 }
 
 h2 {
@@ -178,18 +176,20 @@ button:hover {
 
 .zurueck-button {
     width: auto;
-    display: inline-block;
+    display: inline;
 
     background: none;
-    color: #888;
+    color: inherit;
     border: none;
 
-    padding: 4px 8px;
+    padding: 0;
     margin: 0;
 
-    font-size: 0.85rem;
+    font-family: inherit;
+    font-size: inherit;
     font-weight: normal;
 
+    cursor: pointer;
     min-height: auto;
 }
 
