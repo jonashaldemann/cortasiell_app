@@ -169,6 +169,30 @@ button:hover {
     background: #f5f5f5;
 }
 
+.zurueck-button {
+    width: auto;
+    display: inline-block;
+
+    background: none;
+    color: #888;
+    border: none;
+
+    padding: 4px 8px;
+    margin-top: 0;
+    margin-bottom: 10px;
+
+    font-size: 0.85rem;
+    font-weight: normal;
+
+    min-height: auto;
+}
+
+.zurueck-button:hover {
+    color: #555;
+    background: none;
+    text-decoration: underline;
+}
+
 input[type="text"] {
     width: 100%;
 

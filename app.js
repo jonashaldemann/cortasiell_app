@@ -2,7 +2,7 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzosmOtgS7rsXidxsoRodPDiJzAt6CBSEFeLkMZUBTK10O3r6v10t1E9Qfn4DlMF9Na_g/exec";
+    "https://script.google.com/macros/s/PLATZHALTER_URL/exec";
 
 // Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
 const ZUSTAND_KEY = "cortasiell_zustand";
@@ -243,9 +243,20 @@ function zeigeFrage() {
     const typ =
         String(frage.erfassungstyp).trim();
 
+    // Dezenter Zurück-Link, nur wenn es überhaupt eine vorherige
+    // Frage gibt, zu der man zurückkehren kann.
+    const zurueckButton =
+        aktuelleFrage > 0 ? `
+            <button onclick="zurueck()" class="zurueck-button">
+                ‹ Zurück
+            </button>
+        ` : "";
+
     if (typ === "Menge") {
 
         document.getElementById("frage").innerHTML = `
+            ${zurueckButton}
+
             <h2><span class="produkt">${frage.produkt}</span></h2>
 
             <p class="einheit-text">Einheit: ${frage.einheit}</p>
@@ -310,6 +321,8 @@ function zeigeFrage() {
             ` : "";
 
         document.getElementById("frage").innerHTML = `
+            ${zurueckButton}
+
             <h2>${frageText}</h2>
 
             ${unveraendertButton}
@@ -324,6 +337,24 @@ function zeigeFrage() {
             </button>
         `;
     }
+
+}
+
+function zurueck() {
+
+    if (aktuelleFrage === 0) {
+        return;
+    }
+
+    // Die zuletzt gespeicherte Antwort verwerfen, damit die Frage
+    // erneut beantwortet werden kann.
+    inventur.pop();
+
+    aktuelleFrage--;
+
+    speichereZustand();
+
+    zeigeFrage();
 
 }
 
