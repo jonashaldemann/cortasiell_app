@@ -19,7 +19,8 @@ function doGet() {
       erfassungstyp: daten[i][2],
       info: daten[i][3],
       einheit: daten[i][4],
-      inventartyp: daten[i][5]
+      inventartyp: daten[i][5],
+      erfasstId: daten[i][7]
     });
 
   }
@@ -39,13 +40,13 @@ function doPost(e) {
   const payload =
     JSON.parse(e.postData.contents);
 
-  const daten =
-    payload.daten;
-
   const sheet =
     SpreadsheetApp
       .getActiveSpreadsheet()
       .getSheetByName("Inventurdaten");
+
+  const daten =
+    payload.daten || [];
 
   daten.forEach(eintrag => {
 
@@ -64,6 +65,45 @@ function doPost(e) {
     zeitstempelZelle.setNumberFormat("dd.MM.yyyy HH:mm");
 
   });
+
+  const neu =
+    payload.neu || [];
+
+  if (neu.length > 0) {
+
+    // Bereits vorhandene Erfasst-IDs einlesen, um bei wiederholten
+    // Sync-Versuchen keine doppelten Zeilen anzuhängen (im Gegensatz
+    // zu den Updates oben ist appendRow nicht von selbst
+    // wiederholungssicher).
+    const anzahlZeilen =
+      Math.max(sheet.getLastRow() - 1, 1);
+
+    const vorhandeneIds =
+      sheet
+        .getRange(2, 8, anzahlZeilen, 1)
+        .getValues()
+        .flat();
+
+    neu.forEach(eintrag => {
+
+      if (vorhandeneIds.includes(eintrag.tempId)) {
+        return; // schon vorhanden, überspringen
+      }
+
+      sheet.appendRow([
+        eintrag.ort || "",
+        eintrag.produkt || "",
+        "",                    // Erfassungstyp: später manuell im Sheet
+        eintrag.menge || "",
+        "",                    // Einheit: später manuell im Sheet
+        "",                    // Inventartyp: später manuell im Sheet
+        new Date(),
+        eintrag.tempId
+      ]);
+
+    });
+
+  }
 
   return ContentService
     .createTextOutput("POST OK");

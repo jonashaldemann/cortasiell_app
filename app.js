@@ -2,7 +2,7 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbyu32EMYI3qNcifPw42J9rrdSjavNY0NGUvMqZduEFMBOyTlhJrnsUXiiBSFwmVT94uLQ/exec";
+    "https://script.google.com/macros/s/AKfycbzosmOtgS7rsXidxsoRodPDiJzAt6CBSEFeLkMZUBTK10O3r6v10t1E9Qfn4DlMF9Na_g/exec";
 
 // Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
 const ZUSTAND_KEY = "cortasiell_zustand";
@@ -21,6 +21,7 @@ const UMFANG_STUFEN = [
 let alleFragen = [];
 let fragen = [];
 let inventur = [];
+let neueEintraege = [];
 let aktuelleFrage = 0;
 let abgeschlossen = false;
 let synchronisiert = false;
@@ -52,6 +53,7 @@ async function init() {
         // Letzte Inventur ist erfolgreich durch. Sauberer Neustart,
         // inkl. erneuter Abfrage des gewünschten Umfangs.
         inventur = [];
+        neueEintraege = [];
         aktuelleFrage = 0;
         abgeschlossen = false;
         synchronisiert = false;
@@ -120,6 +122,7 @@ function waehleUmfang(gewaehlterUmfang) {
     fragen = filtereFragenNachUmfang(alleFragen, umfang);
 
     inventur = [];
+    neueEintraege = [];
     aktuelleFrage = 0;
     abgeschlossen = false;
     synchronisiert = false;
@@ -187,6 +190,7 @@ function ladeZustand() {
     const zustand = JSON.parse(gespeichert);
 
     inventur = zustand.inventur || [];
+    neueEintraege = zustand.neueEintraege || [];
     aktuelleFrage = zustand.aktuelleFrage || 0;
     abgeschlossen = zustand.abgeschlossen || false;
     synchronisiert = zustand.synchronisiert || false;
@@ -200,6 +204,7 @@ function speichereZustand() {
         ZUSTAND_KEY,
         JSON.stringify({
             inventur,
+            neueEintraege,
             aktuelleFrage,
             abgeschlossen,
             synchronisiert,
@@ -228,8 +233,9 @@ function zeigeFrage() {
     const frage = fragen[aktuelleFrage];
 
     document.getElementById("fortschritt").innerHTML =
+        "Schritt " +
         (aktuelleFrage + 1) +
-        " / " +
+        " von " +
         fragen.length;
 
     document.getElementById("ort").innerHTML =
@@ -309,6 +315,10 @@ function zeigeFrage() {
                 <button onclick="antwortJa()">Ja</button>
                 <button onclick="antwortNein()">Nein</button>
             </div>
+
+            <button onclick="zeigeNeuerEintragFormular()" class="neuer-eintrag-button">
+                ➕ Neuer Eintrag
+            </button>
         `;
     }
 
@@ -344,6 +354,61 @@ function antwortNein() {
     });
 
     naechsteFrage();
+}
+
+function zeigeNeuerEintragFormular() {
+
+    document.getElementById("frage").innerHTML = `
+        <h2>Neuer Eintrag</h2>
+
+        <input type="text" id="neuOrt" placeholder="Ort">
+        <input type="text" id="neuProdukt" placeholder="Produkt">
+        <input type="text" id="neuMenge" placeholder="Menge (z.B. 5 kg)">
+
+        <button onclick="speichereNeuerEintrag()">
+            Speichern
+        </button>
+
+        <button onclick="zeigeFrage()" class="abbrechen-button">
+            Abbrechen
+        </button>
+    `;
+
+}
+
+function speichereNeuerEintrag() {
+
+    const ort =
+        document.getElementById("neuOrt").value.trim();
+
+    const produkt =
+        document.getElementById("neuProdukt").value.trim();
+
+    const menge =
+        document.getElementById("neuMenge").value.trim();
+
+    if (!produkt) {
+
+        alert("Bitte mindestens ein Produkt eingeben.");
+
+        return;
+    }
+
+    neueEintraege.push({
+        tempId:
+            "neu_" + Date.now() + "_" +
+            Math.random().toString(36).slice(2, 8),
+        ort,
+        produkt,
+        menge
+    });
+
+    speichereZustand();
+
+    // Zurück zur Frage, bei der wir unterbrochen haben – der
+    // Fortschritt der eigentlichen Inventur bleibt unangetastet.
+    zeigeFrage();
+
 }
 
 function speichereAnzahl() {
@@ -449,9 +514,9 @@ window.addEventListener("online", () => {
 
 async function synchronisieren() {
 
-    if (inventur.length === 0) {
+    if (inventur.length === 0 && neueEintraege.length === 0) {
 
-        // Noch keine einzige Antwort vorhanden – nichts zu senden.
+        // Weder Antworten noch neue Einträge vorhanden – nichts zu senden.
         zeigeSyncStatus("Noch keine Antworten zum Synchronisieren.");
 
         return;
@@ -460,7 +525,8 @@ async function synchronisieren() {
     const url = APPS_SCRIPT_URL;
 
     const payload = {
-        daten: inventur
+        daten: inventur,
+        neu: neueEintraege
     };
 
     zeigeSyncStatus("Übertrage...");
@@ -475,7 +541,7 @@ async function synchronisieren() {
             body: JSON.stringify(payload)
         });
 
-        const bestaetigt = await warteAufBestaetigung(url, inventur);
+        const bestaetigt = await warteAufBestaetigung(url, inventur, neueEintraege);
 
         if (bestaetigt) {
 
@@ -483,6 +549,11 @@ async function synchronisieren() {
                 "de-CH",
                 { hour: "2-digit", minute: "2-digit" }
             );
+
+            // Neue Einträge sind jetzt bestätigt im Sheet – aus der
+            // lokalen Warteschlange entfernen, damit sie bei einem
+            // künftigen Sync nicht nochmals mitgeschickt werden.
+            neueEintraege = [];
 
             if (abgeschlossen) {
 
@@ -539,7 +610,7 @@ async function synchronisieren() {
 // ist idempotent: mehrfaches Senden derselben Inventur überschreibt
 // dieselben Zeilen einfach erneut mit denselben Werten – schadet also
 // nicht, falls ein Sync-Versuch mehrfach nötig ist.
-async function warteAufBestaetigung(url, erwarteteEintraege, versuche = 5, wartezeitMs = 1500) {
+async function warteAufBestaetigung(url, erwarteteEintraege, erwarteteNeueEintraege = [], versuche = 5, wartezeitMs = 1500) {
 
     for (let i = 0; i < versuche; i++) {
 
@@ -550,7 +621,7 @@ async function warteAufBestaetigung(url, erwarteteEintraege, versuche = 5, warte
             const antwort = await fetch(url);
             const aktuelleDaten = await antwort.json();
 
-            const passtAlles = erwarteteEintraege.every(eintrag => {
+            const passenUpdates = erwarteteEintraege.every(eintrag => {
 
                 const zeile = aktuelleDaten.find(
                     f => f.zeile === eintrag.zeile
@@ -561,7 +632,15 @@ async function warteAufBestaetigung(url, erwarteteEintraege, versuche = 5, warte
 
             });
 
-            if (passtAlles) {
+            const passenNeue = erwarteteNeueEintraege.every(eintrag =>
+
+                aktuelleDaten.some(
+                    f => f.erfasstId === eintrag.tempId
+                )
+
+            );
+
+            if (passenUpdates && passenNeue) {
                 return true;
             }
 

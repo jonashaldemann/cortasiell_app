@@ -83,7 +83,7 @@ body {
 
 h1 {
     font-family: "Nudica-Medium", sans-serif;
-    font-size: 2.2rem;
+    font-size: 2rem;
     margin-bottom: 10px;
 }
 
@@ -93,7 +93,7 @@ h1 {
 
 #ort {
     font-size: 1.3rem;
-    color: #666;
+    color: #888;
     margin-bottom: 15px;
 }
 
@@ -121,6 +121,7 @@ button {
     background: #2e7d32;
     color: white;
 
+    font-family: "Nudica-Medium", sans-serif;
     font-size: 1.3rem;
     font-weight: bold;
 
@@ -142,11 +143,49 @@ button:hover {
     flex: 1;
 }
 
+.neuer-eintrag-button {
+    background: white;
+    color: #2e7d32;
+    border: 2px solid #2e7d32;
+}
+
+.neuer-eintrag-button:hover {
+    background: #f0f7f0;
+}
+
+.abbrechen-button {
+    background: white;
+    color: #666;
+    border: 1px solid #ccc;
+}
+
+.abbrechen-button:hover {
+    background: #f5f5f5;
+}
+
+input[type="text"] {
+    width: 100%;
+
+    padding: 15px;
+
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.2rem;
+    min-height: 50px;
+
+    border: 1px solid #ccc;
+    border-radius: 12px;
+
+    box-sizing: border-box;
+
+    margin-top: 10px;
+}
+
 input[type="number"] {
     width: 100%;
 
     padding: 15px;
 
+    font-family: "Nudica-Medium", sans-serif;
     font-size: 1.5rem;
     min-height: 60px;
     text-align: center;
