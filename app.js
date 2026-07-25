@@ -2,7 +2,7 @@ console.log("App gestartet");
 
 // Zentrale Apps-Script-URL – nur an dieser einen Stelle eintragen.
 const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/PLATZHALTER_URL/exec";
+    "https://script.google.com/macros/s/AKfycbzosmOtgS7rsXidxsoRodPDiJzAt6CBSEFeLkMZUBTK10O3r6v10t1E9Qfn4DlMF9Na_g/exec";
 
 // Schlüssel für alles, was lokal überleben muss (Zustand & Fragen-Cache).
 const ZUSTAND_KEY = "cortasiell_zustand";
@@ -232,19 +232,6 @@ function zeigeFrage() {
 
     const frage = fragen[aktuelleFrage];
 
-    document.getElementById("fortschritt").innerHTML =
-        (aktuelleFrage + 1) +
-        " / " +
-        fragen.length;
-
-    document.getElementById("ort").innerHTML =
-        frage.ort;
-
-    const typ =
-        String(frage.erfassungstyp).trim();
-
-    // Dezenter Zurück-Link, nur wenn es überhaupt eine vorherige
-    // Frage gibt, zu der man zurückkehren kann.
     const zurueckButton =
         aktuelleFrage > 0 ? `
             <button onclick="zurueck()" class="zurueck-button">
@@ -252,11 +239,22 @@ function zeigeFrage() {
             </button>
         ` : "";
 
+    document.getElementById("fortschritt").innerHTML = `
+        ${zurueckButton}
+        <span class="fortschritt-zaehler">
+            ${aktuelleFrage + 1} / ${fragen.length}
+        </span>
+    `;
+
+    document.getElementById("ort").innerHTML =
+        frage.ort;
+
+    const typ =
+        String(frage.erfassungstyp).trim();
+
     if (typ === "Menge") {
 
         document.getElementById("frage").innerHTML = `
-            ${zurueckButton}
-
             <h2><span class="produkt">${frage.produkt}</span></h2>
 
             <p class="einheit-text">Einheit: ${frage.einheit}</p>
@@ -321,8 +319,6 @@ function zeigeFrage() {
             ` : "";
 
         document.getElementById("frage").innerHTML = `
-            ${zurueckButton}
-
             <h2>${frageText}</h2>
 
             ${unveraendertButton}
