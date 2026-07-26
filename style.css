@@ -215,12 +215,12 @@ input[type="number"] {
     width: 100%;
 
     padding: 15px;
-    padding-right: 55px;
+    padding-right: 90px;
 
     font-family: "Nudica-Medium", sans-serif;
     font-size: 1.5rem;
     min-height: 60px;
-    text-align: right;
+    text-align: center;
 
     border: 1px solid #ccc;
     border-radius: 12px;
