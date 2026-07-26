@@ -98,11 +98,6 @@ h1 {
     margin-bottom: 15px;
 }
 
-.einheit-text {
-    font-size: 0.85rem;
-    color: #888;
-}
-
 #fortschritt {
     display: flex;
     align-items: center;
@@ -220,16 +215,34 @@ input[type="number"] {
     width: 100%;
 
     padding: 15px;
+    padding-right: 55px;
 
     font-family: "Nudica-Medium", sans-serif;
     font-size: 1.5rem;
     min-height: 60px;
-    text-align: center;
+    text-align: right;
 
     border: 1px solid #ccc;
     border-radius: 12px;
 
     box-sizing: border-box;
+}
+
+.mengen-feld {
+    position: relative;
+}
+
+.mengen-feld .einheit-suffix {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    color: #888;
+    font-family: "Nudica-Light", sans-serif;
+    font-size: 1rem;
+
+    pointer-events: none;
 }
 
 pre {

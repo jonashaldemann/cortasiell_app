@@ -257,15 +257,16 @@ function zeigeFrage() {
         document.getElementById("frage").innerHTML = `
             <h2><span class="produkt">${frage.produkt}</span></h2>
 
-            <p class="einheit-text">Einheit: ${frage.einheit}</p>
-
-            <input
-                type="number"
-                id="anzahlFeld"
-                value="${frage.info || 0}"
-                min="0"
-                onfocus="this.select()"
-            >
+            <div class="mengen-feld">
+                <input
+                    type="number"
+                    id="anzahlFeld"
+                    value="${frage.info || 0}"
+                    min="0"
+                    onfocus="this.select()"
+                >
+                <span class="einheit-suffix">${frage.einheit}</span>
+            </div>
 
             <button onclick="speichereAnzahl()">
                 Speichern & Weiter
