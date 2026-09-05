@@ -1,10 +1,10 @@
 :root {
     /* Alphütten-Palette ("Mountain Cabin") */
-    --farbe-primaer: #3f6b3a;
-    --farbe-primaer-hover: #325628;
+    --farbe-primaer: #52633d;
+    --farbe-primaer-hover: #41522c;
 
-    --farbe-akzent: #8a6d4b;
-    --farbe-akzent-hover: #6e573c;
+    --farbe-akzent: #563928;
+    --farbe-akzent-hover: rgb(90, 67, 41);
 
     --farbe-neutral-rand: #a79c8e;
     --farbe-neutral-text: #6b6255;
