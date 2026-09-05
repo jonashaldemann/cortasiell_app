@@ -239,11 +239,19 @@ function zeigeFrage() {
             </button>
         ` : "";
 
+    const vorButton =
+        aktuelleFrage < fragen.length - 1 ? `
+            <button onclick="vor()" class="vor-button">
+                Vor ›
+            </button>
+        ` : "";
+
     document.getElementById("fortschritt").innerHTML = `
         ${zurueckButton}
         <span class="fortschritt-zaehler">
             ${aktuelleFrage + 1} / ${fragen.length}
         </span>
+        ${vorButton}
     `;
 
     document.getElementById("ort").innerHTML =
@@ -343,10 +351,6 @@ function zurueck() {
         return;
     }
 
-    // Die zuletzt gespeicherte Antwort verwerfen, damit die Frage
-    // erneut beantwortet werden kann.
-    inventur.pop();
-
     aktuelleFrage--;
 
     speichereZustand();
@@ -355,23 +359,66 @@ function zurueck() {
 
 }
 
+function vor() {
+
+    if (aktuelleFrage >= fragen.length - 1) {
+        return;
+    }
+
+    aktuelleFrage++;
+
+    speichereZustand();
+
+    zeigeFrage();
+
+}
+
+function geheZumStart() {
+
+    if (fragen.length === 0) {
+        return;
+    }
+
+    aktuelleFrage = 0;
+    abgeschlossen = false;
+
+    speichereZustand();
+
+    zeigeFrage();
+
+}
+
+// Trägt die Antwort zur jeweiligen Sheet-Zeile ein. Gibt es für diese
+// Zeile bereits einen Wert (z.B. weil die Frage nach einem Zurück/Vor
+// erneut beantwortet wurde), wird er ersetzt statt dupliziert – so
+// bleibt "eine Zeile = ein Eintrag" auch bei freier Navigation erhalten.
+function speichereAntwort(zeile, wert) {
+
+    const bestehenderIndex =
+        inventur.findIndex(eintrag => eintrag.zeile === zeile);
+
+    if (bestehenderIndex !== -1) {
+        inventur[bestehenderIndex].wert = wert;
+    } else {
+        inventur.push({ zeile, wert });
+    }
+
+}
+
 
 function antwortUnveraendert() {
 
-    inventur.push({
-        zeile: fragen[aktuelleFrage].zeile,
-        wert: fragen[aktuelleFrage].info
-    });
+    speichereAntwort(
+        fragen[aktuelleFrage].zeile,
+        fragen[aktuelleFrage].info
+    );
 
     naechsteFrage();
 }
 
 function antwortJa() {
 
-    inventur.push({
-        zeile: fragen[aktuelleFrage].zeile,
-        wert: "ja"
-    });
+    speichereAntwort(fragen[aktuelleFrage].zeile, "ja");
 
     naechsteFrage();
 }
@@ -379,10 +426,7 @@ function antwortJa() {
 
 function antwortNein() {
 
-    inventur.push({
-        zeile: fragen[aktuelleFrage].zeile,
-        wert: "nein"
-    });
+    speichereAntwort(fragen[aktuelleFrage].zeile, "nein");
 
     naechsteFrage();
 }
@@ -447,10 +491,7 @@ function speichereAnzahl() {
     const wert =
         document.getElementById("anzahlFeld").value;
 
-    inventur.push({
-        zeile: fragen[aktuelleFrage].zeile,
-        wert: wert
-    });
+    speichereAntwort(fragen[aktuelleFrage].zeile, wert);
 
     naechsteFrage();
 }

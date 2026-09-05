@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-v27";
+const CACHE_NAME = "cortasiell-v28";
 
 const FILES_TO_CACHE = [
     "./",
@@ -11,7 +11,9 @@ const FILES_TO_CACHE = [
     "./fonts/nudica-medium-webfont.woff2",
     "./fonts/nudica-medium-webfont.woff",
     "./fonts/nudica-regular-webfont.woff2",
-    "./fonts/nudica-regular-webfont.woff"
+    "./fonts/nudica-regular-webfont.woff",
+    "./icons/icon-192.png",
+    "./icons/icon-512.png"
 ];
 
 self.addEventListener("install", event => {
