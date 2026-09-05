@@ -281,7 +281,7 @@ function zeigeFrage() {
             </button>
 
             <button onclick="zeigeNeuerEintragFormular()" class="neuer-eintrag-button">
-                ➕ Neuer Eintrag
+                + Neuer Eintrag
             </button>
         `;
 
@@ -338,7 +338,7 @@ function zeigeFrage() {
             </div>
 
             <button onclick="zeigeNeuerEintragFormular()" class="neuer-eintrag-button">
-                ➕ Neuer Eintrag
+                + Neuer Eintrag
             </button>
         `;
     }
@@ -375,16 +375,10 @@ function vor() {
 
 function geheZumStart() {
 
-    if (fragen.length === 0) {
-        return;
-    }
-
-    aktuelleFrage = 0;
-    abgeschlossen = false;
-
-    speichereZustand();
-
-    zeigeFrage();
+    // Zeigt nur die Auswahlseite an – der laufende Fortschritt bleibt
+    // unangetastet, bis tatsächlich ein Umfang gewählt wird
+    // (waehleUmfang() setzt dann den Zustand zurück).
+    zeigeUmfangAuswahl();
 
 }
 

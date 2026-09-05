@@ -4,7 +4,7 @@
     --farbe-primaer-hover: #325628;
 
     --farbe-akzent: #8a6d4b;
-    --farbe-akzent-hover-bg: #f5efe6;
+    --farbe-akzent-hover: #6e573c;
 
     --farbe-neutral-rand: #a79c8e;
     --farbe-neutral-text: #6b6255;
@@ -84,13 +84,13 @@ body {
 }
 
 .start-button {
-    background: white;
-    color: var(--farbe-akzent);
-    border: 2px solid var(--farbe-akzent);
+    background: var(--farbe-akzent);
+    color: white;
+    border: none;
 }
 
 .start-button:hover {
-    background: var(--farbe-akzent-hover-bg);
+    background: var(--farbe-akzent-hover);
 }
 
 #sync-leiste #syncStatus {
@@ -183,13 +183,13 @@ button:hover {
 }
 
 .neuer-eintrag-button {
-    background: white;
-    color: var(--farbe-akzent);
-    border: 2px solid var(--farbe-akzent);
+    background: var(--farbe-akzent);
+    color: white;
+    border: none;
 }
 
 .neuer-eintrag-button:hover {
-    background: var(--farbe-akzent-hover-bg);
+    background: var(--farbe-akzent-hover);
 }
 
 .abbrechen-button {
