@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Projekte Cortasiell</title>
+
+    <link rel="stylesheet" href="../shared/theme.css">
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="icon" href="../shared/icons/icon-192.png">
+    <meta name="theme-color" content="#34454c">
+</head>
+
+<body>
+
+    <div class="kopfzeile">
+        <a href="../" class="start-link">⏮ Start</a>
+        <h1>Projekte</h1>
+        <button id="statusConfigButton" class="icon-button" onclick="window.oeffneStatusConfig()" title="Status-Liste bearbeiten">⚙</button>
+    </div>
+
+    <div class="aktionsleiste">
+        <button onclick="window.neuesProjekt()">+ Neues Projekt</button>
+    </div>
+
+    <div class="tabelle-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-griff"></th>
+                    <th>Titel</th>
+                    <th>Beschreibung</th>
+                    <th>Personen</th>
+                    <th>Dauer</th>
+                    <th>Kosten</th>
+                    <th>Datei</th>
+                    <th>Status</th>
+                    <th class="col-aktionen"></th>
+                </tr>
+            </thead>
+            <tbody id="projekteBody">
+                <tr><td colspan="9">Lädt…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Editor -->
+    <div id="editorOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2 id="editorTitel">Neues Projekt</h2>
+                <button class="icon-button" onclick="window.schliesseEditor()">✕</button>
+            </div>
+
+            <div class="form-group">
+
+                <label>Titel</label>
+                <input type="text" id="inputTitel" placeholder="z.B. Sanierung Terrasse">
+
+                <label>Beschreibung</label>
+                <textarea id="inputBeschreibung" rows="3"></textarea>
+
+                <div class="zwei-spalten">
+                    <div>
+                        <label>Anzahl Personen</label>
+                        <input type="number" id="inputAnzahlPersonen" min="0">
+                    </div>
+                    <div>
+                        <label>Dauer (Tage)</label>
+                        <input type="number" id="inputDauerTage" min="0">
+                    </div>
+                    <div>
+                        <label>Kosten (CHF)</label>
+                        <input type="number" id="inputKosten" min="0" step="100">
+                    </div>
+                    <div>
+                        <label>Status</label>
+                        <select id="inputStatus"></select>
+                    </div>
+                </div>
+
+                <label>Abklärungen</label>
+                <div id="checklisteListe" class="checkliste-liste"></div>
+                <button type="button" class="add-button" onclick="window.checklistePunktHinzufuegen()">+ Punkt hinzufügen</button>
+
+                <label>Datei (z.B. Offerte)</label>
+                <div id="dateiAnzeige" class="datei-anzeige"></div>
+                <input type="file" id="inputDatei">
+
+            </div>
+
+            <div class="form-aktionen">
+                <button onclick="window.projektSpeichern()">Speichern</button>
+                <button class="abbrechen-button" onclick="window.schliesseEditor()">Abbrechen</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Status-Konfiguration -->
+    <div id="statusConfigOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2>Status-Liste</h2>
+                <button class="icon-button" onclick="window.schliesseStatusConfig()">✕</button>
+            </div>
+
+            <div id="statusConfigListe" class="checkliste-liste"></div>
+            <button type="button" class="add-button" onclick="window.statusOptionHinzufuegen()">+ Status hinzufügen</button>
+
+            <div class="form-aktionen">
+                <button onclick="window.statusConfigSpeichern()">Speichern</button>
+                <button class="abbrechen-button" onclick="window.schliesseStatusConfig()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="projekte.js"></script>
+
+</body>
+</html>

@@ -10,5 +10,23 @@ service cloud.firestore {
         && request.resource.data.get('aktivitaet', '') is string
         && request.resource.data.get('aktivitaet', '').size() <= 500;
     }
+
+    match /projekte/{projektId} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(
+          ['titel', 'beschreibung', 'anzahlPersonen', 'dauerTage', 'checkliste',
+           'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm'])
+        && request.resource.data.titel is string
+        && request.resource.data.titel.size() <= 200
+        && request.resource.data.reihenfolge is number
+        && request.resource.data.get('checkliste', []) is list;
+    }
+
+    match /konfiguration/{docId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['optionen'])
+        && request.resource.data.optionen is list;
+    }
   }
 }
