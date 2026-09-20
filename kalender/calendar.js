@@ -33,8 +33,6 @@ let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string 
 let unsubscribeZeitraum = null;
 let ausgewaehlteTage = new Set();
 
-init();
-
 function init() {
 
     abonniereZeitraum();
@@ -59,6 +57,73 @@ function montagDerWoche(datum) {
     const montag = new Date(datum);
     montag.setDate(datum.getDate() - versatz);
     return montag;
+}
+
+// Osterdatum nach dem gaußschen Osteralgorithmus (Meeus/Jones/Butcher) –
+// daraus lassen sich alle beweglichen Feiertage (Karfreitag, Auffahrt,
+// Pfingsten, ...) für jedes beliebige Jahr herleiten, ohne Daten pflegen
+// zu müssen.
+function osterdatum(jahr) {
+
+    const a = jahr % 19;
+    const b = Math.floor(jahr / 100);
+    const c = jahr % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const monat = Math.floor((h + l - 7 * m + 114) / 31);
+    const tag = ((h + l - 7 * m + 114) % 31) + 1;
+
+    return new Date(jahr, monat - 1, tag);
+
+}
+
+function tagePlus(datum, n) {
+    const neu = new Date(datum);
+    neu.setDate(neu.getDate() + n);
+    return neu;
+}
+
+const feiertageCache = {};
+
+// Schweizer (Bundes-)Feiertage für ein Jahr, als "YYYY-MM-DD" -> Name.
+function feiertageFuerJahr(jahr) {
+
+    if (feiertageCache[jahr]) {
+        return feiertageCache[jahr];
+    }
+
+    const ostern = osterdatum(jahr);
+
+    const liste = [
+        [new Date(jahr, 0, 1), "Neujahr"],
+        [tagePlus(ostern, -2), "Karfreitag"],
+        [ostern, "Ostersonntag"],
+        [tagePlus(ostern, 1), "Ostermontag"],
+        [tagePlus(ostern, 39), "Auffahrt"],
+        [tagePlus(ostern, 49), "Pfingstsonntag"],
+        [tagePlus(ostern, 50), "Pfingstmontag"],
+        [new Date(jahr, 7, 1), "Nationalfeiertag"],
+        [new Date(jahr, 11, 25), "Weihnachten"],
+        [new Date(jahr, 11, 26), "Stephanstag"]
+    ];
+
+    const map = {};
+    liste.forEach(([datum, name]) => { map[datumZuId(datum)] = name; });
+
+    feiertageCache[jahr] = map;
+    return map;
+
+}
+
+function feiertagName(datum) {
+    return feiertageFuerJahr(datum.getFullYear())[datumZuId(datum)] || null;
 }
 
 // HTML-Escaping für alles, was Nutzer als Freitext eingeben (Namen,
@@ -230,10 +295,12 @@ function renderMonatsansicht() {
 
     for (let tag = 1; tag <= anzahlTage; tag++) {
 
-        const id = datumZuId(new Date(jahr, monat, tag));
+        const tagDatumObj = new Date(jahr, monat, tag);
+        const id = datumZuId(tagDatumObj);
         const eintrag = tageDaten[id];
         const personen = eintrag?.personen || [];
         const aktivitaet = eintrag?.aktivitaet || "";
+        const feiertag = feiertagName(tagDatumObj);
 
         const chips = personen
             .slice(0, 3)
@@ -248,12 +315,18 @@ function renderMonatsansicht() {
             ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>`
             : "";
 
+        const feiertagLabel = feiertag
+            ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>`
+            : "";
+
         const heuteKlasse = id === heuteId ? " heute" : "";
         const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
+        const feiertagKlasse = feiertag ? " feiertag" : "";
 
         zellen += `
-            <div class="tag-zelle${heuteKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
+            <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
                 <div class="tag-nummer">${tag}</div>
+                ${feiertagLabel}
                 <div class="person-chips">${chips}${mehrChip}</div>
                 ${aktivitaetSnippet}
             </div>
@@ -301,6 +374,7 @@ function renderWochenansicht() {
         const eintrag = tageDaten[id];
         const personen = eintrag?.personen || [];
         const aktivitaet = eintrag?.aktivitaet || "";
+        const feiertag = feiertagName(tagDatum);
 
         const chips = personen.length
             ? personen.map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join("")
@@ -308,14 +382,16 @@ function renderWochenansicht() {
 
         const heuteKlasse = id === heuteId ? " heute" : "";
         const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
+        const feiertagKlasse = feiertag ? " feiertag" : "";
 
         zeilen += `
-            <div class="wochen-zeile${heuteKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
+            <div class="wochen-zeile${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
                 <div class="wochen-datum">
                     <span class="wochen-wochentag">${WOCHENTAGE[i]}</span>
                     <span class="wochen-tagnummer">${tagDatum.getDate()}.${pad(tagDatum.getMonth() + 1)}.</span>
                 </div>
                 <div class="wochen-inhalt">
+                    ${feiertag ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>` : ""}
                     <div class="person-chips">${chips}</div>
                     ${aktivitaet ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>` : ""}
                 </div>
@@ -554,6 +630,8 @@ window.auswahlAufheben = auswahlAufheben;
 window.nameHinzufuegen = nameHinzufuegen;
 window.entfernePersonAusAuswahl = entfernePersonAusAuswahl;
 window.aktivitaetSpeichern = aktivitaetSpeichern;
+
+init();
 
 if ("serviceWorker" in navigator) {
 

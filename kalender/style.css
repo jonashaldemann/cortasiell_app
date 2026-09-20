@@ -144,6 +144,10 @@ h1 {
     border-width: 2px;
 }
 
+.tag-zelle.feiertag {
+    background: var(--anthrazit-blass);
+}
+
 .tag-zelle.ausgewaehlt {
     background: var(--rot-blass);
     border-color: var(--akzent-kalender);
@@ -153,6 +157,16 @@ h1 {
     font-size: 0.8rem;
     color: var(--text);
     font-weight: bold;
+}
+
+.feiertag-label {
+    font-size: 0.55rem;
+    color: var(--akzent-reserve);
+    font-weight: bold;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .person-chips {
@@ -214,6 +228,10 @@ h1 {
     border-width: 2px;
 }
 
+.wochen-zeile.feiertag {
+    background: var(--anthrazit-blass);
+}
+
 .wochen-zeile.ausgewaehlt {
     background: var(--rot-blass);
     border-color: var(--akzent-kalender);
@@ -247,6 +265,11 @@ h1 {
     white-space: normal;
     font-size: 0.8rem;
     margin-top: 4px;
+}
+
+.wochen-inhalt .feiertag-label {
+    font-size: 0.7rem;
+    margin-bottom: 3px;
 }
 
 .wochen-leer-hinweis {
