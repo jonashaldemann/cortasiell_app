@@ -8,13 +8,10 @@ import {
     onSnapshot,
     orderBy,
     query,
-    setDoc,
     startAt,
     endAt,
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-
-const MEIN_NAME_KEY = "cortasiell_kalender_name";
 
 const MONATSNAMEN = [
     "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -35,13 +32,11 @@ let cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate(
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
 let unsubscribeZeitraum = null;
 let ausgewaehlteTage = new Set();
-let meinName = localStorage.getItem(MEIN_NAME_KEY) || "";
 
 init();
 
 function init() {
 
-    renderNameLeiste();
     abonniereZeitraum();
     renderAlles();
 
@@ -53,11 +48,6 @@ function pad(n) {
 
 function datumZuId(datum) {
     return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
-}
-
-function idZuDatum(id) {
-    const [jahr, monat, tag] = id.split("-").map(Number);
-    return new Date(jahr, monat - 1, tag);
 }
 
 function anzahlTageImMonat(jahr, monat) {
@@ -156,7 +146,6 @@ function abonniereZeitraum() {
 function renderAlles() {
 
     renderAnsichtUmschalter();
-    renderVonBisLeiste();
     renderKalender();
     renderAuswahlLeiste();
 
@@ -191,30 +180,6 @@ function zeitraumWechseln(delta) {
 
 }
 
-function renderNameLeiste() {
-
-    document.getElementById("nameLeiste").innerHTML = `
-        <label class="name-label">
-            Dein Name:
-            <input
-                type="text"
-                id="meinNameFeld"
-                value="${escapeHtml(meinName)}"
-                placeholder="z.B. Jonas"
-                onchange="window.speichereMeinName()"
-            >
-        </label>
-    `;
-
-}
-
-function speichereMeinName() {
-
-    meinName = document.getElementById("meinNameFeld").value.trim();
-    localStorage.setItem(MEIN_NAME_KEY, meinName);
-
-}
-
 function renderAnsichtUmschalter() {
 
     document.getElementById("ansichtUmschalter").innerHTML = `
@@ -229,48 +194,6 @@ function renderAnsichtUmschalter() {
             >Woche</button>
         </div>
     `;
-
-}
-
-function renderVonBisLeiste() {
-
-    document.getElementById("vonBisLeiste").innerHTML = `
-        <div class="von-bis-leiste">
-            <input type="date" id="vonDatum">
-            <span class="von-bis-trenner">–</span>
-            <input type="date" id="bisDatum">
-            <button onclick="window.bereichAuswaehlen()" class="von-bis-button">
-                Bereich auswählen
-            </button>
-        </div>
-    `;
-
-}
-
-function bereichAuswaehlen() {
-
-    const vonWert = document.getElementById("vonDatum").value;
-    const bisWert = document.getElementById("bisDatum").value;
-
-    if (!vonWert || !bisWert) {
-        alert("Bitte Von- und Bis-Datum wählen.");
-        return;
-    }
-
-    const von = idZuDatum(vonWert);
-    const bis = idZuDatum(bisWert);
-
-    if (von > bis) {
-        alert("Das Von-Datum muss vor dem Bis-Datum liegen.");
-        return;
-    }
-
-    for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
-        ausgewaehlteTage.add(datumZuId(tag));
-    }
-
-    renderKalender();
-    renderAuswahlLeiste();
 
 }
 
@@ -437,6 +360,43 @@ function formatDatumKurz(id) {
 
 }
 
+function formatDatumLang(id) {
+
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
+
+}
+
+// Liefert die gemeinsame Personen-Liste, wenn ALLE ausgewählten Tage
+// exakt dieselbe Belegung haben (unabhängig von der Reihenfolge) – sonst
+// null. Nur dann ist "eine" Liste mit Entfernen-Buttons überhaupt
+// sinnvoll darstellbar.
+function gemeinsamePersonen() {
+
+    const ids = [...ausgewaehlteTage];
+
+    const listen = ids.map(id => (tageDaten[id]?.personen || []).slice().sort());
+    const erste = JSON.stringify(listen[0] || []);
+
+    const alleGleich = listen.every(liste => JSON.stringify(liste) === erste);
+
+    return alleGleich ? (listen[0] || []) : null;
+
+}
+
+// Liefert die gemeinsame Aktivität, wenn alle ausgewählten Tage denselben
+// Text haben – sonst "" (das Textfeld wird dann einfach leer angezeigt,
+// bis explizit gespeichert wird; nichts wird automatisch überschrieben).
+function gemeinsameAktivitaet() {
+
+    const ids = [...ausgewaehlteTage];
+    const werte = ids.map(id => tageDaten[id]?.aktivitaet || "");
+    const erste = werte[0] ?? "";
+
+    return werte.every(w => w === erste) ? erste : "";
+
+}
+
 function renderAuswahlLeiste() {
 
     const box = document.getElementById("auswahlLeiste");
@@ -446,56 +406,82 @@ function renderAuswahlLeiste() {
         return;
     }
 
-    if (ausgewaehlteTage.size === 1) {
-        renderEinzelTagDetail(box, [...ausgewaehlteTage][0]);
-        return;
+    const ids = [...ausgewaehlteTage].sort();
+    const einzelTag = ids.length === 1;
+
+    const titel = einzelTag
+        ? formatDatumLang(ids[0])
+        : `${ids.length} Tage ausgewählt`;
+
+    const datumChips = !einzelTag
+        ? `<div class="person-chips ausgewaehlte-tage-chips">
+               ${ids.map(id => `<span class="person-chip datum-chip">${formatDatumKurz(id)}</span>`).join("")}
+           </div>`
+        : "";
+
+    const personen = gemeinsamePersonen();
+
+    let personenBereich;
+
+    if (personen === null) {
+
+        personenBereich = `<p class="hinweis-text">
+            Die ausgewählten Tage haben unterschiedliche Personen – wähle
+            nur Tage mit gleicher Belegung aus, um sie hier zu sehen und
+            zu entfernen.
+        </p>`;
+
+    } else if (personen.length === 0) {
+
+        personenBereich = `<p class="hinweis-text">Noch niemand eingetragen.</p>`;
+
+    } else {
+
+        personenBereich = `
+            <ul class="personen-liste">
+                ${personen.map(name => `
+                    <li>
+                        ${escapeHtml(name)}
+                        <button
+                            class="entfernen-button"
+                            data-name="${escapeHtml(name)}"
+                            onclick="window.entfernePersonAusAuswahl(this.dataset.name)"
+                        >✕</button>
+                    </li>
+                `).join("")}
+            </ul>
+        `;
+
     }
 
-    renderMehrfachAuswahl(box);
-
-}
-
-function renderEinzelTagDetail(box, id) {
-
-    const eintrag = tageDaten[id] || { personen: [], aktivitaet: "" };
-    const personen = eintrag.personen || [];
-    const binDabei = meinName && personen.includes(meinName);
-
-    const [jahr, monat, tag] = id.split("-").map(Number);
-    const datumText = `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
-
-    const personenListe = personen.length
-        ? personen.map(name => `
-            <li>
-                ${escapeHtml(name)}
-                <button
-                    class="entfernen-button"
-                    data-name="${escapeHtml(name)}"
-                    onclick="window.entfernePerson('${id}', this.dataset.name)"
-                >✕</button>
-            </li>
-        `).join("")
-        : "<li class=\"leer-hinweis\">Noch niemand eingetragen.</li>";
+    const aktivitaet = gemeinsameAktivitaet();
 
     box.innerHTML = `
         <div class="auswahl-panel">
 
-            <h2>${datumText}</h2>
+            <h2>${titel}</h2>
+            ${datumChips}
 
-            <ul class="personen-liste">
-                ${personenListe}
-            </ul>
+            ${personenBereich}
 
-            <button onclick="window.ichBinDabei('${id}')" ${binDabei ? "disabled" : ""}>
-                ${binDabei ? "Du bist eingetragen ✓" : "Ich bin dabei"}
-            </button>
+            <div class="name-hinzufuegen-reihe">
+                <input
+                    type="text"
+                    id="nameFeld"
+                    placeholder="Name"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();window.nameHinzufuegen();}"
+                >
+                <button onclick="window.nameHinzufuegen()" class="hinzufuegen-button">
+                    Hinzufügen
+                </button>
+            </div>
 
             <label class="aktivitaet-label">
-                Aktivität an diesem Tag:
-                <textarea id="aktivitaetFeld" rows="3">${escapeHtml(eintrag.aktivitaet)}</textarea>
+                Aktivität an ${einzelTag ? "diesem Tag" : "diesen Tagen"}:
+                <textarea id="aktivitaetFeld" rows="3">${escapeHtml(aktivitaet)}</textarea>
             </label>
 
-            <button onclick="window.speichereAktivitaet('${id}')">
+            <button onclick="window.aktivitaetSpeichern()">
                 Aktivität speichern
             </button>
 
@@ -508,42 +494,10 @@ function renderEinzelTagDetail(box, id) {
 
 }
 
-function renderMehrfachAuswahl(box) {
+async function nameHinzufuegen() {
 
-    const idsSortiert = [...ausgewaehlteTage].sort();
-
-    const chips = idsSortiert
-        .map(id => `<span class="person-chip datum-chip">${formatDatumKurz(id)}</span>`)
-        .join("");
-
-    box.innerHTML = `
-        <div class="auswahl-panel">
-
-            <h2>${ausgewaehlteTage.size} Tage ausgewählt</h2>
-
-            <div class="person-chips ausgewaehlte-tage-chips">${chips}</div>
-
-            <label class="aktivitaet-label">
-                Name für alle ausgewählten Tage:
-                <input type="text" id="bulkNameFeld" value="${escapeHtml(meinName)}" placeholder="Name">
-            </label>
-
-            <button onclick="window.bulkHinzufuegen()">
-                Hinzufügen
-            </button>
-
-            <button onclick="window.auswahlAufheben()" class="abbrechen-button">
-                Auswahl aufheben
-            </button>
-
-        </div>
-    `;
-
-}
-
-async function bulkHinzufuegen() {
-
-    const name = document.getElementById("bulkNameFeld").value.trim();
+    const feld = document.getElementById("nameFeld");
+    const name = feld.value.trim();
 
     if (!name) {
         alert("Bitte einen Namen eingeben.");
@@ -558,46 +512,36 @@ async function bulkHinzufuegen() {
 
     await batch.commit();
 
-    ausgewaehlteTage.clear();
-    renderKalender();
-    renderAuswahlLeiste();
+    // Auswahl bleibt bestehen, damit gleich die nächste Person ergänzt
+    // werden kann – nur das Eingabefeld wird für die nächste Eingabe
+    // geleert.
+    feld.value = "";
+    feld.focus();
 
 }
 
-async function ichBinDabei(id) {
+async function entfernePersonAusAuswahl(name) {
 
-    if (!meinName) {
-        alert("Bitte zuerst oben deinen Namen eintragen.");
-        return;
-    }
+    const batch = writeBatch(db);
 
-    await setDoc(
-        doc(db, "tage", id),
-        { personen: arrayUnion(meinName) },
-        { merge: true }
-    );
+    ausgewaehlteTage.forEach(id => {
+        batch.set(doc(db, "tage", id), { personen: arrayRemove(name) }, { merge: true });
+    });
+
+    await batch.commit();
 
 }
 
-async function entfernePerson(id, name) {
-
-    await setDoc(
-        doc(db, "tage", id),
-        { personen: arrayRemove(name) },
-        { merge: true }
-    );
-
-}
-
-async function speichereAktivitaet(id) {
+async function aktivitaetSpeichern() {
 
     const text = document.getElementById("aktivitaetFeld").value.trim();
+    const batch = writeBatch(db);
 
-    await setDoc(
-        doc(db, "tage", id),
-        { aktivitaet: text },
-        { merge: true }
-    );
+    ausgewaehlteTage.forEach(id => {
+        batch.set(doc(db, "tage", id), { aktivitaet: text }, { merge: true });
+    });
+
+    await batch.commit();
 
 }
 
@@ -605,14 +549,11 @@ async function speichereAktivitaet(id) {
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
 window.ansichtWechseln = ansichtWechseln;
 window.zeitraumWechseln = zeitraumWechseln;
-window.speichereMeinName = speichereMeinName;
-window.bereichAuswaehlen = bereichAuswaehlen;
 window.toggleTag = toggleTag;
 window.auswahlAufheben = auswahlAufheben;
-window.bulkHinzufuegen = bulkHinzufuegen;
-window.ichBinDabei = ichBinDabei;
-window.entfernePerson = entfernePerson;
-window.speichereAktivitaet = speichereAktivitaet;
+window.nameHinzufuegen = nameHinzufuegen;
+window.entfernePersonAusAuswahl = entfernePersonAusAuswahl;
+window.aktivitaetSpeichern = aktivitaetSpeichern;
 
 if ("serviceWorker" in navigator) {
 
