@@ -263,6 +263,42 @@ textarea {
     height: 18px;
 }
 
+.status-config-zeile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: margin 0.12s ease;
+}
+
+.status-config-zeile.dragging {
+    opacity: 0.4;
+}
+
+.status-config-zeile input[type="text"] {
+    flex: 1;
+}
+
+.farb-swatches {
+    display: flex;
+    gap: 5px;
+    flex: none;
+}
+
+.farb-swatch {
+    width: 20px;
+    height: 20px;
+    min-height: auto;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.farb-swatch.ausgewaehlt {
+    border-color: var(--text);
+}
+
 .entfernen-button {
     width: auto;
     flex: none;

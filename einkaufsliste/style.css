@@ -148,8 +148,8 @@ h1 {
     cursor: pointer;
 }
 
-.pin-feld {
-    width: 110px;
+.pin-feld,
+.text-bearbeiten-feld {
     padding: 6px 8px;
     font-family: inherit;
     font-size: 0.85rem;
@@ -158,6 +158,52 @@ h1 {
     background: var(--surface);
     color: var(--text);
     box-sizing: border-box;
+}
+
+.pin-feld {
+    width: 110px;
+}
+
+.text-bearbeiten-feld {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.95rem;
+}
+
+.filter-reihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.filter-reihe:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
+.filter-chip {
+    width: auto;
+    margin-top: 0;
+    padding: 6px 12px;
+    min-height: auto;
+    font-family: var(--font-light);
+    font-weight: normal;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+}
+
+.filter-chip:hover {
+    background: var(--surface-2);
+    filter: brightness(0.95);
+}
+
+.filter-chip.aktiv {
+    background: var(--akzent-einkauf);
+    color: var(--text);
+    font-family: var(--font-medium);
 }
 
 .row-action {

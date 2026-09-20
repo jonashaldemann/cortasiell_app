@@ -13,6 +13,8 @@ import {
 
 let alleEintraege = []; // [{ id, text, erledigt, reihenfolge, angepinnterName }]
 let bearbeiteterNamePinId = null;
+let bearbeitetesTextId = null;
+let aktiverFilterName = null;
 
 let ziehQuellIndex = null;
 let ziehZielIndex = null;
@@ -47,11 +49,67 @@ function init() {
 
 function render() {
 
-    const aktive = alleEintraege.filter(e => !e.erledigt);
-    const erledigte = alleEintraege.filter(e => e.erledigt);
+    renderFilterLeiste();
+
+    const sichtbar = aktiverFilterName
+        ? alleEintraege.filter(e => e.angepinnterName === aktiverFilterName)
+        : alleEintraege;
+
+    const aktive = sichtbar.filter(e => !e.erledigt);
+    const erledigte = sichtbar.filter(e => e.erledigt);
 
     renderAktiveListe(aktive);
     renderErledigtBereich(erledigte);
+
+}
+
+function renderFilterLeiste() {
+
+    const box = document.getElementById("filterLeiste");
+    if (!box) {
+        return;
+    }
+
+    const namen = [...new Set(alleEintraege.map(e => e.angepinnterName).filter(Boolean))].sort();
+
+    if (namen.length === 0) {
+        box.innerHTML = "";
+        return;
+    }
+
+    box.innerHTML = `
+        <button class="filter-chip ${!aktiverFilterName ? "aktiv" : ""}" onclick="window.filterSetzen(null)">Alle</button>
+        ${namen.map(n => `
+            <button class="filter-chip ${aktiverFilterName === n ? "aktiv" : ""}" onclick="window.filterSetzen('${escapeHtml(n)}')">
+                📌 ${escapeHtml(n)}
+            </button>
+        `).join("")}
+    `;
+
+}
+
+function filterSetzen(name) {
+    aktiverFilterName = name;
+    render();
+}
+
+function renderZeileText(eintrag) {
+
+    if (bearbeitetesTextId === eintrag.id) {
+
+        return `
+            <input
+                type="text"
+                class="text-bearbeiten-feld"
+                value="${escapeHtml(eintrag.text)}"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();window.elementTextSpeichern('${eintrag.id}');}"
+            >
+            <button class="row-action" onclick="window.elementTextSpeichern('${eintrag.id}')" title="Speichern">✓</button>
+        `;
+
+    }
+
+    return `<span class="zeile-text" onclick="window.elementBearbeitenOeffnen('${eintrag.id}')">${escapeHtml(eintrag.text)}</span>`;
 
 }
 
@@ -105,7 +163,7 @@ function renderAktiveListe(aktive) {
         >
             <div class="zeile-griff" title="Zum Verschieben ziehen">⠿</div>
             <input type="checkbox" onchange="window.erledigtGeaendert('${e.id}', this.checked)">
-            <span class="zeile-text">${escapeHtml(e.text)}</span>
+            ${renderZeileText(e)}
             <div class="zeile-pin">${renderPinBereich(e)}</div>
             <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
         </div>
@@ -132,7 +190,7 @@ function renderErledigtBereich(erledigte) {
                 <div class="einkaufs-zeile erledigt">
                     <div class="zeile-griff-platzhalter"></div>
                     <input type="checkbox" checked onchange="window.erledigtGeaendert('${e.id}', this.checked)">
-                    <span class="zeile-text">${escapeHtml(e.text)}</span>
+                    ${renderZeileText(e)}
                     <div class="zeile-pin">${e.angepinnterName ? `<span class="pin-chip">📌 ${escapeHtml(e.angepinnterName)}</span>` : ""}</div>
                     <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
                 </div>
@@ -188,6 +246,26 @@ async function erledigteLoeschen() {
     const batch = writeBatch(db);
     erledigte.forEach(e => batch.delete(doc(db, "einkaufsliste", e.id)));
     await batch.commit();
+
+}
+
+function elementBearbeitenOeffnen(id) {
+    bearbeitetesTextId = id;
+    render();
+    document.querySelector(".text-bearbeiten-feld")?.focus();
+}
+
+async function elementTextSpeichern(id) {
+
+    const feld = document.querySelector(".text-bearbeiten-feld");
+    const text = feld ? feld.value.trim() : "";
+
+    if (text) {
+        await setDoc(doc(db, "einkaufsliste", id), { text }, { merge: true });
+    }
+
+    bearbeitetesTextId = null;
+    render();
 
 }
 
@@ -329,6 +407,9 @@ window.elementHinzufuegen = elementHinzufuegen;
 window.erledigtGeaendert = erledigtGeaendert;
 window.elementLoeschen = elementLoeschen;
 window.erledigteLoeschen = erledigteLoeschen;
+window.elementBearbeitenOeffnen = elementBearbeitenOeffnen;
+window.elementTextSpeichern = elementTextSpeichern;
+window.filterSetzen = filterSetzen;
 window.namePinOeffnen = namePinOeffnen;
 window.namePinSpeichern = namePinSpeichern;
 window.dragStart = dragStart;

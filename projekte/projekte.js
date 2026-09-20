@@ -19,20 +19,48 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpCECtC282-VaS
 
 const MAX_DATEIGROESSE = 8 * 1024 * 1024; // 8 MB, Reserve für Base64-Aufblähung + Apps-Script-Limits
 
-const STANDARD_STATUS = ["Entwurf", "zu Besprechen", "Beschlossen"];
+// Farbvorschläge für Status – dieselben Töne, die auch sonst für kräftige
+// Akzente/Balken verwendet werden (siehe shared/theme.css).
+const FARB_VORSCHLAEGE = ["--oliv-dunkel", "--rot-dunkel", "--navy-dunkel", "--anthrazit-dunkel", "--gold-dunkel"];
+
+const STANDARD_STATUS = [
+    { name: "Entwurf", farbe: "--oliv-dunkel" },
+    { name: "zu Besprechen", farbe: "--rot-dunkel" },
+    { name: "Beschlossen", farbe: "--navy-dunkel" }
+];
 
 let projekte = []; // [{ id, titel, ..., reihenfolge }], sortiert
-let statusOptionen = STANDARD_STATUS.slice();
+let statusOptionen = STANDARD_STATUS.slice(); // [{ name, farbe }]
 
 let bearbeitetesProjektId = null; // null = neues Projekt wird angelegt
 let checklisteEntwurf = [];
 let ausgewaehlteDatei = null;
 let dateiEntfernen = false;
 
-let statusConfigEntwurf = [];
+let statusConfigEntwurf = []; // [{ name, farbe }], Arbeitskopie im Overlay
 
 let ziehQuellIndex = null;
 let ziehZielIndex = null;
+
+let statusZiehQuellIndex = null;
+let statusZiehZielIndex = null;
+
+// Ältere Daten hatten `optionen` als reines String-Array – hier auf das
+// neue { name, farbe }-Format anheben, damit bestehende Status (z.B. ein
+// schon angelegter "Langfristig") nicht verloren gehen.
+function statusOptionenNormalisieren(rohOptionen) {
+
+    return rohOptionen.map((eintrag, i) => {
+
+        if (typeof eintrag === "string") {
+            return { name: eintrag, farbe: FARB_VORSCHLAEGE[i % FARB_VORSCHLAEGE.length] };
+        }
+
+        return eintrag;
+
+    });
+
+}
 
 function escapeHtml(text) {
 
@@ -115,7 +143,7 @@ function init() {
     onSnapshot(doc(db, "konfiguration", "projektStatus"), snapshot => {
 
         statusOptionen = snapshot.exists() && Array.isArray(snapshot.data().optionen) && snapshot.data().optionen.length
-            ? snapshot.data().optionen
+            ? statusOptionenNormalisieren(snapshot.data().optionen)
             : STANDARD_STATUS.slice();
 
         renderListe();
@@ -130,31 +158,24 @@ function init() {
 
 function aktuellerBearbeiteterStatus() {
     const projekt = projekte.find(p => p.id === bearbeitetesProjektId);
-    return projekt?.status || statusOptionen[0];
+    return projekt?.status || statusOptionen[0]?.name;
 }
 
 function renderStatusSelect(selectEl, ausgewaehlt) {
 
     selectEl.innerHTML = statusOptionen
-        .map(s => `<option value="${escapeHtml(s)}" ${s === ausgewaehlt ? "selected" : ""}>${escapeHtml(s)}</option>`)
+        .map(s => `<option value="${escapeHtml(s.name)}" ${s.name === ausgewaehlt ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
         .join("");
 
 }
 
-// Stabile, aus dem Statusnamen abgeleitete Akzentfarbe – Status-Werte
-// sind frei editierbar (keine feste Liste), daher keine feste Zuordnung
-// Name -> Farbe, sondern ein einfacher Hash über einen kleinen Satz
-// blasser Palettentöne. Gleicher Status sieht so immer gleich aus.
-const STATUS_FARBTOENE = ["--oliv-dunkel", "--rot-dunkel", "--navy-dunkel", "--anthrazit-dunkel"];
-
+// Farbe kommt aus der (manuell in den Einstellungen zugewiesenen)
+// Status-Konfiguration; falls ein Projekt einen Status trägt, der dort
+// nicht mehr existiert (z.B. gelöscht), neutraler Fallback.
 function farbeFuerStatus(status) {
 
-    let hash = 0;
-    for (const zeichen of String(status)) {
-        hash = (hash * 31 + zeichen.charCodeAt(0)) >>> 0;
-    }
-
-    return `var(${STATUS_FARBTOENE[hash % STATUS_FARBTOENE.length]})`;
+    const eintrag = statusOptionen.find(s => s.name === status);
+    return `var(${eintrag ? eintrag.farbe : "--anthrazit-dunkel"})`;
 
 }
 
@@ -188,7 +209,7 @@ function renderListe() {
                 ${p.dateiUrl ? `<a href="${escapeHtml(p.dateiUrl)}" target="_blank" rel="noopener" title="${escapeHtml(p.dateiName || "Datei")}" onclick="event.stopPropagation()">📎</a>` : ""}
             </div>
             <select class="karte-status" onclick="event.stopPropagation()" onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
-                ${statusOptionen.map(s => `<option value="${escapeHtml(s)}" ${s === p.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+                ${statusOptionen.map(s => `<option value="${escapeHtml(s.name)}" ${s.name === p.status ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
             </select>
             <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
         </div>
@@ -332,7 +353,7 @@ function neuesProjekt() {
     document.getElementById("inputKosten").value = "";
     document.getElementById("inputDatei").value = "";
 
-    renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]);
+    renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]?.name);
     renderChecklisteEditor();
     renderDateiAnzeige(null);
 
@@ -504,7 +525,7 @@ async function projektLoeschen(id) {
 
 function oeffneStatusConfig() {
 
-    statusConfigEntwurf = statusOptionen.slice();
+    statusConfigEntwurf = statusOptionen.map(s => ({ ...s }));
     renderStatusConfigListe();
     document.getElementById("statusConfigOverlay").classList.remove("hidden");
 
@@ -516,9 +537,26 @@ function schliesseStatusConfig() {
 
 function renderStatusConfigListe() {
 
-    document.getElementById("statusConfigListe").innerHTML = statusConfigEntwurf.map((wert, i) => `
-        <div class="checkliste-zeile">
-            <input type="text" value="${escapeHtml(wert)}" oninput="window.statusOptionGeaendert(${i}, this.value)">
+    document.getElementById("statusConfigListe").innerHTML = statusConfigEntwurf.map((eintrag, i) => `
+        <div class="status-config-zeile"
+            draggable="true"
+            ondragstart="window.statusDragStart(event, ${i})"
+            ondragover="window.statusDragOver(event, ${i})"
+            ondrop="window.statusDragDrop(event)"
+            ondragend="window.statusDragEnd(event)"
+        >
+            <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
+            <input type="text" value="${escapeHtml(eintrag.name)}" oninput="window.statusOptionGeaendert(${i}, this.value)">
+            <div class="farb-swatches">
+                ${FARB_VORSCHLAEGE.map(token => `
+                    <button
+                        type="button"
+                        class="farb-swatch ${eintrag.farbe === token ? "ausgewaehlt" : ""}"
+                        style="background:var(${token})"
+                        onclick="window.statusFarbeSetzen(${i}, '${token}')"
+                    ></button>
+                `).join("")}
+            </div>
             <button type="button" class="entfernen-button" onclick="window.statusOptionEntfernen(${i})">✕</button>
         </div>
     `).join("");
@@ -526,14 +564,19 @@ function renderStatusConfigListe() {
 }
 
 function statusOptionHinzufuegen() {
-    statusConfigEntwurf.push("");
+    statusConfigEntwurf.push({ name: "", farbe: FARB_VORSCHLAEGE[statusConfigEntwurf.length % FARB_VORSCHLAEGE.length] });
     renderStatusConfigListe();
     const felder = document.querySelectorAll("#statusConfigListe input[type=text]");
     felder[felder.length - 1]?.focus();
 }
 
 function statusOptionGeaendert(index, wert) {
-    statusConfigEntwurf[index] = wert;
+    statusConfigEntwurf[index].name = wert;
+}
+
+function statusFarbeSetzen(index, token) {
+    statusConfigEntwurf[index].farbe = token;
+    renderStatusConfigListe();
 }
 
 function statusOptionEntfernen(index) {
@@ -541,9 +584,91 @@ function statusOptionEntfernen(index) {
     renderStatusConfigListe();
 }
 
+// Reihenfolge der Status wird rein lokal in statusConfigEntwurf verändert
+// (kein Firestore-Zwischenschritt nötig, da alles in einem Dokument beim
+// "Speichern" auf einmal geschrieben wird) – gleiches Lücken-Feedback wie
+// beim Verschieben der Projekte-Karten.
+function statusConfigZeilenElemente() {
+    return [...document.querySelectorAll("#statusConfigListe .status-config-zeile")];
+}
+
+function statusLueckeZuruecksetzen() {
+    statusConfigZeilenElemente().forEach(el => {
+        el.style.marginTop = "";
+        el.style.marginBottom = "";
+    });
+}
+
+function statusDragStart(event, index) {
+    statusZiehQuellIndex = index;
+    statusZiehZielIndex = index;
+    event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("dragging");
+}
+
+function statusDragOver(event, hoverIndex) {
+
+    event.preventDefault();
+
+    if (statusZiehQuellIndex === null) {
+        return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
+    const zielIndex = nachUnten ? hoverIndex + 1 : hoverIndex;
+
+    if (zielIndex === statusZiehZielIndex) {
+        return;
+    }
+
+    statusZiehZielIndex = zielIndex;
+
+    const zeilen = statusConfigZeilenElemente();
+    zeilen.forEach((el, i) => {
+        el.style.marginTop = (i === zielIndex) ? "16px" : "";
+        el.style.marginBottom = (zielIndex === zeilen.length && i === zeilen.length - 1) ? "16px" : "";
+    });
+
+}
+
+function statusDragDrop(event) {
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (statusZiehQuellIndex === null || statusZiehZielIndex === null) {
+        return;
+    }
+
+    let ziel = statusZiehZielIndex;
+    if (statusZiehQuellIndex < ziel) {
+        ziel -= 1;
+    }
+
+    if (ziel !== statusZiehQuellIndex) {
+        const verschoben = statusConfigEntwurf.splice(statusZiehQuellIndex, 1)[0];
+        statusConfigEntwurf.splice(ziel, 0, verschoben);
+    }
+
+    statusZiehQuellIndex = null;
+    statusZiehZielIndex = null;
+    renderStatusConfigListe();
+
+}
+
+function statusDragEnd(event) {
+    event.currentTarget.classList.remove("dragging");
+    statusZiehQuellIndex = null;
+    statusZiehZielIndex = null;
+    statusLueckeZuruecksetzen();
+}
+
 async function statusConfigSpeichern() {
 
-    const optionen = statusConfigEntwurf.map(s => s.trim()).filter(Boolean);
+    const optionen = statusConfigEntwurf
+        .map(s => ({ name: s.name.trim(), farbe: s.farbe }))
+        .filter(s => s.name);
 
     if (optionen.length === 0) {
         alert("Bitte mindestens einen Status behalten.");
@@ -577,7 +702,12 @@ window.oeffneStatusConfig = oeffneStatusConfig;
 window.schliesseStatusConfig = schliesseStatusConfig;
 window.statusOptionHinzufuegen = statusOptionHinzufuegen;
 window.statusOptionGeaendert = statusOptionGeaendert;
+window.statusFarbeSetzen = statusFarbeSetzen;
 window.statusOptionEntfernen = statusOptionEntfernen;
+window.statusDragStart = statusDragStart;
+window.statusDragOver = statusDragOver;
+window.statusDragDrop = statusDragDrop;
+window.statusDragEnd = statusDragEnd;
 window.statusConfigSpeichern = statusConfigSpeichern;
 
 init();
