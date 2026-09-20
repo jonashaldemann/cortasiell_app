@@ -15,7 +15,7 @@ service cloud.firestore {
       allow read: if true;
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
-          ['titel', 'beschreibung', 'anzahlPersonen', 'dauerTage', 'checkliste',
+          ['titel', 'beschreibung', 'verantwortlich', 'anzahlPersonen', 'dauerTage', 'checkliste',
            'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm'])
         && request.resource.data.titel is string
         && request.resource.data.titel.size() <= 200
@@ -27,6 +27,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if request.resource.data.keys().hasOnly(['optionen'])
         && request.resource.data.optionen is list;
+    }
+
+    match /einkaufsliste/{itemId} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(
+          ['text', 'erledigt', 'reihenfolge', 'angepinnterName'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.reihenfolge is number;
     }
   }
 }

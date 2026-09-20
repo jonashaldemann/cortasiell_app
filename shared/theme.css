@@ -56,6 +56,14 @@
     --anthrazit-hell: color-mix(in srgb, var(--basis-anthrazit) 80%, white);
     --anthrazit-blass: color-mix(in srgb, var(--basis-anthrazit) 12%, white);
 
+    /* Fünfte Farbe für die Einkaufsliste (Anthrazit ist schon an Projekte
+       vergeben) – "Freundliches Goldgelb" aus derselben Farbkarte. */
+    --basis-gold: #f9d988;
+    --gold: var(--basis-gold);
+    --gold-dunkel: color-mix(in srgb, var(--basis-gold) 70%, black);
+    --gold-hell: color-mix(in srgb, var(--basis-gold) 80%, white);
+    --gold-blass: color-mix(in srgb, var(--basis-gold) 20%, white);
+
     /* Zuordnung Farbe -> Bereich – hier ändern, um die Zuordnung zu
        tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
     --akzent-haupt: var(--navy);
@@ -66,6 +74,8 @@
     --akzent-kalender-dunkel: var(--rot-dunkel);
     --akzent-reserve: var(--anthrazit);
     --akzent-reserve-dunkel: var(--anthrazit-dunkel);
+    --akzent-einkauf: var(--gold);
+    --akzent-einkauf-dunkel: var(--gold-dunkel);
 
     /* Neutrale Oberflächen mit leichtem Navy-Hauch */
     --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);

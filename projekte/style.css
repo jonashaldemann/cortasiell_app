@@ -49,7 +49,7 @@ h1 {
 .projekte-spaltenkopf,
 .projekt-karte {
     display: grid;
-    grid-template-columns: 20px minmax(140px, 1.2fr) minmax(200px, 2fr) 90px 80px 100px 40px 150px 32px;
+    grid-template-columns: 20px minmax(140px, 1.2fr) minmax(200px, 2fr) 110px 90px 80px 100px 40px 150px 32px;
     column-gap: 14px;
     align-items: center;
 }
@@ -109,6 +109,7 @@ h1 {
     white-space: pre-wrap;
 }
 
+.karte-verantwortlich,
 .karte-personen,
 .karte-tage,
 .karte-kosten {

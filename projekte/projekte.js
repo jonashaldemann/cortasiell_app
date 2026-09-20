@@ -180,6 +180,7 @@ function renderListe() {
             <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
             <h3 class="karte-titel">${escapeHtml(p.titel)}</h3>
             <p class="karte-beschreibung">${escapeHtml(p.beschreibung)}</p>
+            <div class="karte-verantwortlich">${escapeHtml(p.verantwortlich)}</div>
             <div class="karte-personen">${p.anzahlPersonen ? p.anzahlPersonen : ""}</div>
             <div class="karte-tage">${p.dauerTage ? p.dauerTage + " Tage" : ""}</div>
             <div class="karte-kosten">${p.kosten ? formatChf(p.kosten) : ""}</div>
@@ -325,6 +326,7 @@ function neuesProjekt() {
     document.getElementById("editorTitel").textContent = "Neues Projekt";
     document.getElementById("inputTitel").value = "";
     document.getElementById("inputBeschreibung").value = "";
+    document.getElementById("inputVerantwortlich").value = "";
     document.getElementById("inputAnzahlPersonen").value = "";
     document.getElementById("inputDauerTage").value = "";
     document.getElementById("inputKosten").value = "";
@@ -353,6 +355,7 @@ function projektBearbeiten(id) {
     document.getElementById("editorTitel").textContent = "Projekt bearbeiten";
     document.getElementById("inputTitel").value = projekt.titel || "";
     document.getElementById("inputBeschreibung").value = projekt.beschreibung || "";
+    document.getElementById("inputVerantwortlich").value = projekt.verantwortlich || "";
     document.getElementById("inputAnzahlPersonen").value = projekt.anzahlPersonen ?? "";
     document.getElementById("inputDauerTage").value = projekt.dauerTage ?? "";
     document.getElementById("inputKosten").value = projekt.kosten ?? "";
@@ -440,6 +443,7 @@ async function projektSpeichern() {
     const daten = {
         titel,
         beschreibung: document.getElementById("inputBeschreibung").value.trim(),
+        verantwortlich: document.getElementById("inputVerantwortlich").value.trim(),
         anzahlPersonen: Number(document.getElementById("inputAnzahlPersonen").value) || 0,
         dauerTage: Number(document.getElementById("inputDauerTage").value) || 0,
         kosten: Number(document.getElementById("inputKosten").value) || 0,
