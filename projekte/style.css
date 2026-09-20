@@ -19,40 +19,12 @@ body {
     margin: 0 auto 16px;
 }
 
-.start-link {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.9rem;
-    white-space: nowrap;
-}
-
-.start-link:hover {
-    text-decoration: underline;
-}
-
 h1 {
     font-family: var(--font-medium);
     font-size: 1.3rem;
     color: var(--text);
     margin: 0;
     flex: 1;
-}
-
-.icon-button {
-    width: auto;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 4px 8px;
-    min-height: auto;
-    margin: 0;
-}
-
-.icon-button:hover {
-    color: var(--text);
-    background: none;
 }
 
 .aktionsleiste {
@@ -64,62 +36,92 @@ h1 {
     width: auto;
 }
 
-.tabelle-wrapper {
+.hinweis-text {
     max-width: min(1400px, 96vw);
     margin: 0 auto;
-    background: var(--surface);
-    border-radius: 16px;
-    padding: 8px;
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
-th {
-    text-align: left;
-    font-family: var(--font-medium);
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    padding: 10px 12px;
-    border-bottom: 2px solid var(--border);
-    white-space: nowrap;
+.projekte-liste {
+    max-width: min(1400px, 96vw);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+    align-items: start;
 }
 
-td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
+.projekt-karte {
+    display: flex;
+    gap: 10px;
+    border-radius: 16px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: transform 0.08s ease;
 }
 
-tr:last-child td {
-    border-bottom: none;
+.projekt-karte:hover {
+    transform: translateY(-1px);
 }
 
-tr.dragging {
+.projekt-karte.dragging {
     opacity: 0.4;
 }
 
-.col-griff {
-    width: 24px;
+.karte-griff {
+    flex: none;
     color: var(--text-muted);
     cursor: grab;
-    text-align: center;
+    padding-top: 2px;
 }
 
-.col-beschreibung {
-    max-width: 260px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.karte-inhalt {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.col-aktionen {
-    white-space: nowrap;
-    text-align: right;
+.karte-kopf {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.karte-kopf h3 {
+    font-family: var(--font-medium);
+    font-size: 1.1rem;
+    margin: 0;
+    color: var(--text);
+}
+
+.karte-beschreibung {
+    font-size: 0.9rem;
+    color: var(--text);
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.karte-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.karte-meta a {
+    color: var(--text-muted);
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+.karte-status {
+    align-self: flex-start;
 }
 
 .row-action {
@@ -132,15 +134,12 @@ tr.dragging {
     padding: 4px 6px;
     min-height: auto;
     margin: 0;
+    flex: none;
 }
 
 .row-action:hover {
     color: var(--akzent-reserve);
     background: none;
-}
-
-td a {
-    color: var(--akzent-reserve);
 }
 
 select {
@@ -150,7 +149,7 @@ select {
     font-size: 0.85rem;
     border: none;
     border-radius: 999px;
-    background: var(--surface-2);
+    background: var(--surface);
     color: var(--text);
 }
 

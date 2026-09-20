@@ -74,3 +74,26 @@
     --font-light: "Nudica-Light", -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-medium: "Nudica-Medium", -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* Kleiner Icon-Button, z.B. Start-Icon oben rechts in jeder App –
+   gemeinsam definiert, damit er überall gleich aussieht. */
+.icon-btn {
+    width: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    min-height: auto;
+    margin: 0;
+}
+
+.icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}

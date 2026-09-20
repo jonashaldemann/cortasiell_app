@@ -101,13 +101,13 @@ function init() {
     onSnapshot(query(collection(db, "projekte"), orderBy("reihenfolge")), snapshot => {
 
         projekte = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderTabelle();
+        renderListe();
 
     }, error => {
 
         console.error("Projekte konnten nicht geladen werden:", error);
-        document.getElementById("projekteBody").innerHTML =
-            `<tr><td colspan="9">⚠️ Projekte konnten nicht geladen werden.</td></tr>`;
+        document.getElementById("projekteListe").innerHTML =
+            `<p class="hinweis-text">⚠️ Projekte konnten nicht geladen werden.</p>`;
 
     });
 
@@ -117,7 +117,7 @@ function init() {
             ? snapshot.data().optionen
             : STANDARD_STATUS.slice();
 
-        renderTabelle();
+        renderListe();
 
         if (!document.getElementById("editorOverlay").classList.contains("hidden")) {
             renderStatusSelect(document.getElementById("inputStatus"), aktuellerBearbeiteterStatus());
@@ -140,38 +140,64 @@ function renderStatusSelect(selectEl, ausgewaehlt) {
 
 }
 
-function renderTabelle() {
+// Stabile, aus dem Statusnamen abgeleitete Akzentfarbe – Status-Werte
+// sind frei editierbar (keine feste Liste), daher keine feste Zuordnung
+// Name -> Farbe, sondern ein einfacher Hash über einen kleinen Satz
+// blasser Palettentöne. Gleicher Status sieht so immer gleich aus.
+const STATUS_FARBTOENE = ["--oliv-blass", "--rot-blass", "--navy-blass", "--anthrazit-blass"];
 
-    const body = document.getElementById("projekteBody");
+function farbeFuerStatus(status) {
+
+    let hash = 0;
+    for (const zeichen of String(status)) {
+        hash = (hash * 31 + zeichen.charCodeAt(0)) >>> 0;
+    }
+
+    return `var(${STATUS_FARBTOENE[hash % STATUS_FARBTOENE.length]})`;
+
+}
+
+function renderListe() {
+
+    const box = document.getElementById("projekteListe");
 
     if (projekte.length === 0) {
-        body.innerHTML = `<tr><td colspan="9">Noch keine Projekte vorhanden.</td></tr>`;
+        box.innerHTML = `<p class="hinweis-text">Noch keine Projekte vorhanden.</p>`;
         return;
     }
 
-    body.innerHTML = projekte.map((p, index) => `
-        <tr draggable="true"
+    box.innerHTML = projekte.map((p, index) => `
+        <div class="projekt-karte"
+            style="background:${farbeFuerStatus(p.status)}"
+            draggable="true"
             ondragstart="window.dragStart(event, ${index})"
             ondragover="event.preventDefault()"
             ondrop="window.dragDrop(event, ${index})"
+            ondragend="window.dragEnd(event)"
+            onclick="window.projektBearbeiten('${p.id}')"
         >
-            <td class="col-griff" title="Zum Verschieben ziehen">⠿</td>
-            <td>${escapeHtml(p.titel)}</td>
-            <td class="col-beschreibung">${escapeHtml(p.beschreibung)}</td>
-            <td>${p.anzahlPersonen ?? ""}</td>
-            <td>${p.dauerTage ? p.dauerTage + " Tage" : ""}</td>
-            <td>${formatChf(p.kosten)}</td>
-            <td>${p.dateiUrl ? `<a href="${escapeHtml(p.dateiUrl)}" target="_blank" rel="noopener">📎 ${escapeHtml(p.dateiName || "Datei")}</a>` : "–"}</td>
-            <td>
-                <select onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
+            <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
+
+            <div class="karte-inhalt">
+                <div class="karte-kopf">
+                    <h3>${escapeHtml(p.titel)}</h3>
+                    <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
+                </div>
+
+                ${p.beschreibung ? `<p class="karte-beschreibung">${escapeHtml(p.beschreibung)}</p>` : ""}
+
+                <div class="karte-meta">
+                    ${p.anzahlPersonen ? `<span>${p.anzahlPersonen} Personen</span>` : ""}
+                    ${p.dauerTage ? `<span>${p.dauerTage} Tage</span>` : ""}
+                    ${p.kosten ? `<span>${formatChf(p.kosten)}</span>` : ""}
+                    ${p.dateiUrl ? `<a href="${escapeHtml(p.dateiUrl)}" target="_blank" rel="noopener" title="${escapeHtml(p.dateiName || "Datei")}" onclick="event.stopPropagation()">📎</a>` : ""}
+                </div>
+
+                <select class="karte-status" onclick="event.stopPropagation()" onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
                     ${statusOptionen.map(s => `<option value="${escapeHtml(s)}" ${s === p.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
                 </select>
-            </td>
-            <td class="col-aktionen">
-                <button class="row-action" onclick="window.projektBearbeiten('${p.id}')" title="Bearbeiten">✎</button>
-                <button class="row-action" onclick="window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
-            </td>
-        </tr>
+            </div>
+        </div>
     `).join("");
 
 }
@@ -179,6 +205,11 @@ function renderTabelle() {
 function dragStart(event, index) {
     ziehQuellIndex = index;
     event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("dragging");
+}
+
+function dragEnd(event) {
+    event.currentTarget.classList.remove("dragging");
 }
 
 async function dragDrop(event, zielIndex) {
@@ -193,7 +224,7 @@ async function dragDrop(event, zielIndex) {
     projekte.splice(zielIndex, 0, verschoben);
     ziehQuellIndex = null;
 
-    renderTabelle();
+    renderListe();
 
     const batch = writeBatch(db);
     projekte.forEach((p, i) => {
@@ -450,6 +481,7 @@ async function statusConfigSpeichern() {
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
 window.dragStart = dragStart;
 window.dragDrop = dragDrop;
+window.dragEnd = dragEnd;
 window.statusInZeileGeaendert = statusInZeileGeaendert;
 window.neuesProjekt = neuesProjekt;
 window.projektBearbeiten = projektBearbeiten;
