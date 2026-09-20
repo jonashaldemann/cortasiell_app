@@ -32,6 +32,7 @@ let dateiEntfernen = false;
 let statusConfigEntwurf = [];
 
 let ziehQuellIndex = null;
+let ziehZielIndex = null;
 
 function escapeHtml(text) {
 
@@ -171,67 +172,141 @@ function renderListe() {
             style="background:${farbeFuerStatus(p.status)}"
             draggable="true"
             ondragstart="window.dragStart(event, ${index})"
-            ondragover="event.preventDefault()"
-            ondrop="window.dragDrop(event, ${index})"
+            ondragover="window.dragOver(event, ${index})"
+            ondrop="window.dragDrop(event)"
             ondragend="window.dragEnd(event)"
             onclick="window.projektBearbeiten('${p.id}')"
         >
             <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
-
-            <div class="karte-inhalt">
-                <div class="karte-kopf">
-                    <h3>${escapeHtml(p.titel)}</h3>
-                    <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
-                </div>
-
-                ${p.beschreibung ? `<p class="karte-beschreibung">${escapeHtml(p.beschreibung)}</p>` : ""}
-
-                <div class="karte-meta">
-                    ${p.anzahlPersonen ? `<span>${p.anzahlPersonen} Personen</span>` : ""}
-                    ${p.dauerTage ? `<span>${p.dauerTage} Tage</span>` : ""}
-                    ${p.kosten ? `<span>${formatChf(p.kosten)}</span>` : ""}
-                    ${p.dateiUrl ? `<a href="${escapeHtml(p.dateiUrl)}" target="_blank" rel="noopener" title="${escapeHtml(p.dateiName || "Datei")}" onclick="event.stopPropagation()">📎</a>` : ""}
-                </div>
-
-                <select class="karte-status" onclick="event.stopPropagation()" onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
-                    ${statusOptionen.map(s => `<option value="${escapeHtml(s)}" ${s === p.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
-                </select>
+            <h3 class="karte-titel">${escapeHtml(p.titel)}</h3>
+            <p class="karte-beschreibung">${escapeHtml(p.beschreibung)}</p>
+            <div class="karte-personen">${p.anzahlPersonen ? p.anzahlPersonen : ""}</div>
+            <div class="karte-tage">${p.dauerTage ? p.dauerTage + " Tage" : ""}</div>
+            <div class="karte-kosten">${p.kosten ? formatChf(p.kosten) : ""}</div>
+            <div class="karte-datei">
+                ${p.dateiUrl ? `<a href="${escapeHtml(p.dateiUrl)}" target="_blank" rel="noopener" title="${escapeHtml(p.dateiName || "Datei")}" onclick="event.stopPropagation()">📎</a>` : ""}
             </div>
+            <select class="karte-status" onclick="event.stopPropagation()" onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
+                ${statusOptionen.map(s => `<option value="${escapeHtml(s)}" ${s === p.status ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+            </select>
+            <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
         </div>
     `).join("");
 
 }
 
+function alleKartenElemente() {
+    return [...document.querySelectorAll("#projekteListe .projekt-karte")];
+}
+
+function lueckeZuruecksetzen() {
+    alleKartenElemente().forEach(el => {
+        el.style.marginTop = "";
+        el.style.marginBottom = "";
+    });
+}
+
 function dragStart(event, index) {
     ziehQuellIndex = index;
+    ziehZielIndex = index;
     event.dataTransfer.effectAllowed = "move";
     event.currentTarget.classList.add("dragging");
 }
 
-function dragEnd(event) {
-    event.currentTarget.classList.remove("dragging");
-}
-
-async function dragDrop(event, zielIndex) {
+function dragOver(event, hoverIndex) {
 
     event.preventDefault();
 
-    if (ziehQuellIndex === null || ziehQuellIndex === zielIndex) {
+    if (ziehQuellIndex === null) {
         return;
     }
 
-    const verschoben = projekte.splice(ziehQuellIndex, 1)[0];
-    projekte.splice(zielIndex, 0, verschoben);
-    ziehQuellIndex = null;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
+    const zielIndex = nachUnten ? hoverIndex + 1 : hoverIndex;
 
+    if (zielIndex === ziehZielIndex) {
+        return;
+    }
+
+    ziehZielIndex = zielIndex;
+
+    // Statt neu zu rendern (würde den gerade gezogenen Knoten zerstören
+    // und den nativen Drag abbrechen) wird nur an der Einfügestelle eine
+    // zusätzliche Lücke per Margin erzeugt – die Nachbarn rücken sichtbar
+    // auseinander, ohne die Liste neu aufzubauen.
+    const karten = alleKartenElemente();
+
+    karten.forEach((el, i) => {
+        el.style.marginTop = (i === zielIndex) ? "22px" : "";
+        el.style.marginBottom = (zielIndex === karten.length && i === karten.length - 1) ? "22px" : "";
+    });
+
+}
+
+// Fängt das Droppen in der leeren Fläche unterhalb der letzten Karte ab
+// (dort gibt es keine Karte, deren dragover-Handler feuern könnte).
+function dragOverListe(event) {
+
+    if (event.target !== event.currentTarget || ziehQuellIndex === null) {
+        return;
+    }
+
+    event.preventDefault();
+
+    const karten = alleKartenElemente();
+    if (ziehZielIndex === karten.length) {
+        return;
+    }
+
+    ziehZielIndex = karten.length;
+
+    karten.forEach((el, i) => {
+        el.style.marginTop = "";
+        el.style.marginBottom = (i === karten.length - 1) ? "22px" : "";
+    });
+
+}
+
+async function dragDrop(event) {
+
+    event.preventDefault();
+    event.stopPropagation(); // sonst feuert das drop-Event zusätzlich am äusseren Container erneut
+
+    if (ziehQuellIndex === null || ziehZielIndex === null) {
+        return;
+    }
+
+    let ziel = ziehZielIndex;
+    if (ziehQuellIndex < ziel) {
+        ziel -= 1;
+    }
+
+    if (ziel !== ziehQuellIndex) {
+
+        const verschoben = projekte.splice(ziehQuellIndex, 1)[0];
+        projekte.splice(ziel, 0, verschoben);
+
+        const batch = writeBatch(db);
+        projekte.forEach((p, i) => {
+            batch.set(doc(db, "projekte", p.id), { reihenfolge: i }, { merge: true });
+        });
+        await batch.commit();
+
+    }
+
+    ziehQuellIndex = null;
+    ziehZielIndex = null;
+    lueckeZuruecksetzen();
     renderListe();
 
-    const batch = writeBatch(db);
-    projekte.forEach((p, i) => {
-        batch.set(doc(db, "projekte", p.id), { reihenfolge: i }, { merge: true });
-    });
-    await batch.commit();
+}
 
+function dragEnd(event) {
+    event.currentTarget.classList.remove("dragging");
+    ziehQuellIndex = null;
+    ziehZielIndex = null;
+    lueckeZuruecksetzen();
 }
 
 async function statusInZeileGeaendert(id, neuerStatus) {
@@ -480,6 +555,8 @@ async function statusConfigSpeichern() {
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
 window.dragStart = dragStart;
+window.dragOver = dragOver;
+window.dragOverListe = dragOverListe;
 window.dragDrop = dragDrop;
 window.dragEnd = dragEnd;
 window.statusInZeileGeaendert = statusInZeileGeaendert;

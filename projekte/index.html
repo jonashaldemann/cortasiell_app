@@ -27,7 +27,19 @@
         <button onclick="window.neuesProjekt()">+ Neues Projekt</button>
     </div>
 
-    <div id="projekteListe" class="projekte-liste">
+    <div class="projekte-spaltenkopf">
+        <span></span>
+        <span>Titel</span>
+        <span>Beschreibung</span>
+        <span>Personen</span>
+        <span>Dauer</span>
+        <span>Kosten</span>
+        <span>Datei</span>
+        <span>Status</span>
+        <span></span>
+    </div>
+
+    <div id="projekteListe" class="projekte-liste" ondragover="window.dragOverListe(event)" ondrop="window.dragDrop(event)">
         <p class="hinweis-text">Lädt…</p>
     </div>
 

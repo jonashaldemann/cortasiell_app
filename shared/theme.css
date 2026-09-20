@@ -23,11 +23,15 @@
 }
 
 :root {
-    /* Basis-Palette – hier ändern, um die ganze App umzufärben */
-    --basis-navy: #12354e;
-    --basis-oliv: #819238;
-    --basis-rot: #a62c37;
-    --basis-anthrazit: #34454c;
+    /* Basis-Palette – hier ändern, um die ganze App umzufärben.
+       Aktuell orientiert an einer gedeckten/dezenten Farbkarte:
+       Navy -> "Unendliches Tiefseeblau", Oliv -> "Ausgeglichenes
+       Pinienrün", Rot -> "Englisches Rosenrot", Anthrazit ->
+       "Klassisches Schiefergrau". */
+    --basis-navy: #3f4859;
+    --basis-oliv: #5e6f5c;
+    --basis-rot: #a2615f;
+    --basis-anthrazit: #676558;
 
     /* Je Basisfarbe drei zusätzliche Helligkeitsstufen, automatisch
        abgeleitet – ändern sich mit, wenn oben eine Basisfarbe geändert
