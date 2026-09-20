@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-dashboard-v1";
+const CACHE_NAME = "cortasiell-dashboard-v2";
 
 const FILES_TO_CACHE = [
     "./",
@@ -6,6 +6,7 @@ const FILES_TO_CACHE = [
     "./style.css",
     "./app.js",
     "./manifest.json",
+    "./shared/theme.css",
     "./shared/fonts/nudica-light-webfont.woff2",
     "./shared/fonts/nudica-light-webfont.woff",
     "./shared/fonts/nudica-medium-webfont.woff2",

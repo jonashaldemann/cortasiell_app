@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-inventar-v1";
+const CACHE_NAME = "cortasiell-inventar-v2";
 
 const FILES_TO_CACHE = [
     "./",
@@ -6,14 +6,15 @@ const FILES_TO_CACHE = [
     "./style.css",
     "./app.js",
     "./manifest.json",
+    "./icons/icon-192.png",
+    "./icons/icon-512.png",
+    "../shared/theme.css",
     "../shared/fonts/nudica-light-webfont.woff2",
     "../shared/fonts/nudica-light-webfont.woff",
     "../shared/fonts/nudica-medium-webfont.woff2",
     "../shared/fonts/nudica-medium-webfont.woff",
     "../shared/fonts/nudica-regular-webfont.woff2",
-    "../shared/fonts/nudica-regular-webfont.woff",
-    "../shared/icons/icon-192.png",
-    "../shared/icons/icon-512.png"
+    "../shared/fonts/nudica-regular-webfont.woff"
 ];
 
 self.addEventListener("install", event => {

@@ -1,42 +1,8 @@
-:root {
-    --farbe-primaer: #52633d;
-    --farbe-primaer-hover: #41522c;
-
-    --farbe-akzent: #563928;
-    --farbe-akzent-hover: rgb(90, 67, 41);
-
-    --farbe-neutral-rand: #a79c8e;
-    --farbe-neutral-text: #6b6255;
-    --farbe-neutral-hover-bg: #f2eee8;
-
-    --farbe-hintergrund: #f4f1ea;
-    --farbe-text-dunkel: #2a2118;
-    --farbe-text-gedaempft: #8a8175;
-    --farbe-rand-hell: #ddd4c6;
-}
-
-@font-face {
-    font-family: "Nudica-Light";
-    src:
-        url("../shared/fonts/nudica-light-webfont.woff2") format("woff2"),
-        url("../shared/fonts/nudica-light-webfont.woff") format("woff");
-    font-weight: normal;
-    font-style: normal;
-}
-
-@font-face {
-    font-family: "Nudica-Medium";
-    src:
-        url("../shared/fonts/nudica-medium-webfont.woff2") format("woff2"),
-        url("../shared/fonts/nudica-medium-webfont.woff") format("woff");
-    font-weight: normal;
-    font-style: normal;
-}
-
 body {
-    font-family: "Nudica-Light", sans-serif;
+    font-family: var(--font-light);
     font-size: 16px;
-    background-color: var(--farbe-hintergrund);
+    background-color: var(--bg);
+    color: var(--text);
 
     margin: 0;
     padding: 20px;
@@ -49,12 +15,10 @@ body {
     width: 100%;
     max-width: 480px;
 
-    background: white;
+    background: var(--surface);
 
     border-radius: 16px;
     padding: 20px;
-
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
 }
 
 .kopfzeile {
@@ -65,7 +29,7 @@ body {
 }
 
 .start-link {
-    color: var(--farbe-neutral-text);
+    color: var(--text-muted);
     text-decoration: none;
     font-size: 0.9rem;
     white-space: nowrap;
@@ -76,9 +40,9 @@ body {
 }
 
 h1 {
-    font-family: "Nudica-Medium", sans-serif;
+    font-family: var(--font-medium);
     font-size: 1.3rem;
-    color: var(--farbe-text-dunkel);
+    color: var(--text);
     margin: 0;
 }
 
@@ -87,17 +51,87 @@ h1 {
     align-items: center;
     gap: 8px;
     font-size: 0.9rem;
-    color: var(--farbe-neutral-text);
+    color: var(--text-muted);
     margin-bottom: 16px;
 }
 
 .name-label input {
     flex: 1;
     padding: 8px 10px;
-    border: 1px solid var(--farbe-rand-hell);
+    border: none;
     border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
     font-family: inherit;
     font-size: 0.95rem;
+}
+
+.ansicht-umschalter {
+    display: flex;
+    gap: 6px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 14px;
+}
+
+.umschalt-button {
+    flex: 1;
+    width: auto;
+    margin-top: 0;
+    padding: 8px;
+    min-height: auto;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.umschalt-button:hover {
+    background: none;
+    color: var(--text);
+}
+
+.umschalt-button.aktiv {
+    background: var(--surface);
+    color: var(--text);
+}
+
+.von-bis-leiste {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.von-bis-leiste input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.von-bis-trenner {
+    color: var(--text-muted);
+}
+
+.von-bis-button {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--akzent-reserve);
+    font-size: 0.85rem;
+    padding: 8px;
+    min-height: auto;
+}
+
+.von-bis-button:hover {
+    background: var(--akzent-reserve-dunkel);
 }
 
 #monatsNavigation {
@@ -109,7 +143,7 @@ h1 {
 }
 
 .nav-button {
-    background: var(--farbe-primaer);
+    background: var(--akzent-kalender);
     color: white;
     border: none;
     border-radius: 8px;
@@ -120,12 +154,12 @@ h1 {
 }
 
 .nav-button:hover {
-    background: var(--farbe-primaer-hover);
+    background: var(--akzent-kalender-dunkel);
 }
 
-.monats-titel {
-    font-family: "Nudica-Medium", sans-serif;
-    font-size: 1.1rem;
+.zeitraum-titel {
+    font-family: var(--font-medium);
+    font-size: 1.05rem;
     min-width: 140px;
     text-align: center;
 }
@@ -140,13 +174,13 @@ h1 {
 .wochentag {
     text-align: center;
     font-size: 0.75rem;
-    color: var(--farbe-text-gedaempft);
+    color: var(--text-muted);
     padding-bottom: 4px;
 }
 
 .tag-zelle {
     min-height: 64px;
-    border: 1px solid var(--farbe-rand-hell);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 4px;
     cursor: pointer;
@@ -154,7 +188,7 @@ h1 {
 }
 
 .tag-zelle:hover {
-    background: var(--farbe-neutral-hover-bg);
+    background: var(--surface-2);
 }
 
 .tag-zelle.leer {
@@ -163,18 +197,18 @@ h1 {
 }
 
 .tag-zelle.heute {
-    border-color: var(--farbe-primaer);
+    border-color: var(--akzent-kalender);
     border-width: 2px;
 }
 
 .tag-zelle.ausgewaehlt {
-    background: var(--farbe-neutral-hover-bg);
-    border-color: var(--farbe-akzent);
+    background: var(--rot-blass);
+    border-color: var(--akzent-kalender);
 }
 
 .tag-nummer {
     font-size: 0.8rem;
-    color: var(--farbe-text-dunkel);
+    color: var(--text);
     font-weight: bold;
 }
 
@@ -186,7 +220,7 @@ h1 {
 }
 
 .person-chip {
-    background: var(--farbe-primaer);
+    background: var(--akzent-kalender);
     color: white;
     font-size: 0.6rem;
     padding: 1px 5px;
@@ -195,30 +229,101 @@ h1 {
 }
 
 .person-chip.mehr {
-    background: var(--farbe-neutral-rand);
+    background: var(--text-muted);
+}
+
+.person-chip.datum-chip {
+    background: var(--akzent-reserve);
+    font-size: 0.75rem;
+    padding: 3px 8px;
 }
 
 .tag-aktivitaet {
     font-size: 0.6rem;
-    color: var(--farbe-text-gedaempft);
+    color: var(--text-muted);
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-#tagPanel {
+.wochen-liste {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wochen-zeile {
+    display: flex;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.wochen-zeile:hover {
+    background: var(--surface-2);
+}
+
+.wochen-zeile.heute {
+    border-color: var(--akzent-kalender);
+    border-width: 2px;
+}
+
+.wochen-zeile.ausgewaehlt {
+    background: var(--rot-blass);
+    border-color: var(--akzent-kalender);
+}
+
+.wochen-datum {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    flex: none;
+}
+
+.wochen-wochentag {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.wochen-tagnummer {
+    font-family: var(--font-medium);
+    font-size: 0.95rem;
+}
+
+.wochen-inhalt {
+    flex: 1;
+    min-width: 0;
+}
+
+.wochen-inhalt .tag-aktivitaet {
+    white-space: normal;
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.wochen-leer-hinweis {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.auswahl-panel {
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
     margin-top: 16px;
 }
 
-.tag-panel-inhalt {
-    border-top: 1px solid var(--farbe-rand-hell);
-    padding-top: 16px;
-}
-
-.tag-panel-inhalt h2 {
+.auswahl-panel h2 {
     font-size: 1.1rem;
     margin: 0 0 12px;
+}
+
+.ausgewaehlte-tage-chips {
+    margin-bottom: 14px;
 }
 
 .personen-liste {
@@ -232,14 +337,14 @@ h1 {
     align-items: center;
     justify-content: space-between;
     padding: 8px 10px;
-    background: var(--farbe-neutral-hover-bg);
+    background: var(--surface-2);
     border-radius: 8px;
     margin-bottom: 6px;
     font-size: 0.9rem;
 }
 
 .leer-hinweis {
-    color: var(--farbe-text-gedaempft);
+    color: var(--text-muted);
     justify-content: center !important;
     background: none !important;
 }
@@ -247,7 +352,7 @@ h1 {
 .entfernen-button {
     width: auto;
     background: none;
-    color: var(--farbe-neutral-text);
+    color: var(--text-muted);
     border: none;
     padding: 0 4px;
     margin: 0;
@@ -259,8 +364,21 @@ h1 {
 .aktivitaet-label {
     display: block;
     font-size: 0.9rem;
-    color: var(--farbe-neutral-text);
+    color: var(--text-muted);
     margin: 12px 0 4px;
+}
+
+.aktivitaet-label input[type="text"] {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
 }
 
 textarea {
@@ -268,8 +386,10 @@ textarea {
     padding: 10px;
     font-family: inherit;
     font-size: 0.95rem;
-    border: 1px solid var(--farbe-rand-hell);
+    border: none;
     border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
     box-sizing: border-box;
     resize: vertical;
 }
@@ -280,9 +400,9 @@ button {
     margin-top: 8px;
     border: none;
     border-radius: 12px;
-    background: var(--farbe-primaer);
+    background: var(--akzent-kalender);
     color: white;
-    font-family: "Nudica-Medium", sans-serif;
+    font-family: var(--font-medium);
     font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
@@ -290,20 +410,20 @@ button {
 }
 
 button:hover {
-    background: var(--farbe-primaer-hover);
+    background: var(--akzent-kalender-dunkel);
 }
 
 button:disabled {
-    background: var(--farbe-neutral-rand);
+    background: var(--text-muted);
     cursor: default;
 }
 
 .abbrechen-button {
-    background: white;
-    color: var(--farbe-neutral-text);
-    border: 1px solid var(--farbe-neutral-rand);
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
 }
 
 .abbrechen-button:hover {
-    background: var(--farbe-neutral-hover-bg);
+    background: var(--surface-2);
 }

@@ -1,116 +1,77 @@
-:root {
-    /* Alphütten-Palette ("Mountain Cabin") */
-    --farbe-primaer: #52633d;
-    --farbe-primaer-hover: #41522c;
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-    --farbe-akzent: #563928;
-    --farbe-akzent-hover: rgb(90, 67, 41);
-
-    --farbe-hintergrund: #f4f1ea;
-    --farbe-text-dunkel: #2a2118;
-    --farbe-text-gedaempft: #8a8175;
-}
-
-@font-face {
-    font-family: "Nudica-Light";
-    src:
-        url("./shared/fonts/nudica-light-webfont.woff2") format("woff2"),
-        url("./shared/fonts/nudica-light-webfont.woff") format("woff");
-    font-weight: normal;
-    font-style: normal;
-}
-
-@font-face {
-    font-family: "Nudica-Medium";
-    src:
-        url("./shared/fonts/nudica-medium-webfont.woff2") format("woff2"),
-        url("./shared/fonts/nudica-medium-webfont.woff") format("woff");
-    font-weight: normal;
-    font-style: normal;
+html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-light);
 }
 
 body {
-    font-family: "Nudica-Light", sans-serif;
-    font-size: 20px;
-    background-color: var(--farbe-hintergrund);
-
-    margin: 0;
-    padding: 20px;
-
-    display: flex;
-    justify-content: center;
-}
-
-.container {
-    width: 100%;
-    max-width: 420px;
-
-    background: white;
-
-    border-radius: 16px;
-    padding: 24px;
-
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-
-    text-align: center;
-}
-
-h1 {
-    font-family: "Nudica-Medium", sans-serif;
-    font-size: 1.6rem;
-    color: var(--farbe-text-dunkel);
-    margin-bottom: 24px;
-}
-
-.kacheln {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
-.kachel {
+.topbar {
+    padding: 16px 20px calc(10px + env(safe-area-inset-top)) 20px;
+    padding-top: max(16px, env(safe-area-inset-top));
+}
+
+.topbar h1 {
+    font-family: var(--font-medium);
+    font-size: 20px;
+    font-weight: normal;
+    letter-spacing: 0.2px;
+    margin: 0;
+    color: var(--text);
+}
+
+main {
+    flex: 1;
+    padding: 0 16px 24px;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.tile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px 8px;
+}
+
+.tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--text);
+    padding: 6px 2px;
+    border-radius: 16px;
+}
+
+.tile:active {
+    background: var(--surface-2);
+}
+
+.tile-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
-    gap: 14px;
-
-    padding: 18px 20px;
-
-    border-radius: 12px;
-    background: var(--farbe-primaer);
-    color: white;
-
-    text-decoration: none;
-    text-align: left;
-
-    transition: background 0.15s ease;
+    justify-content: center;
+    flex: none;
+    color: #fff;
 }
 
-.kachel:hover {
-    background: var(--farbe-primaer-hover);
-}
-
-.kachel-icon {
-    font-size: 1.8rem;
-    line-height: 1;
-}
-
-.kachel-titel {
-    font-family: "Nudica-Medium", sans-serif;
-    font-size: 1.15rem;
-}
-
-@media (max-width: 600px) {
-
-    body {
-        padding: 10px;
-    }
-
-    .container {
-        max-width: 100%;
-        padding: 20px;
-    }
-
-    h1 {
-        font-size: 1.92rem;
-    }
+.tile-label {
+    font-family: var(--font-medium);
+    font-size: 12px;
+    font-weight: normal;
+    text-align: center;
+    line-height: 1.25;
 }

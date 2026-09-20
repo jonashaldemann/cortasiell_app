@@ -6,37 +6,48 @@
 
     <title>Cortasiell-App</title>
 
+    <link rel="stylesheet" href="shared/theme.css">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 
     <link rel="icon" href="shared/icons/icon-192.png">
     <link rel="apple-touch-icon" href="shared/icons/icon-192.png">
-    <meta name="theme-color" content="#3f6b3a">
+    <meta name="theme-color" content="#12354e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Cortasiell">
 </head>
 
 <body>
 
-    <div class="container">
+    <header class="topbar">
+        <h1>Cortasiell</h1>
+    </header>
 
-        <h1>Cortasiell-App</h1>
+    <main>
 
-        <div class="kacheln">
+        <div class="tile-grid">
 
-            <a href="./inventar/" class="kachel">
-                <span class="kachel-icon">📦</span>
-                <span class="kachel-titel">Inventar</span>
+            <a class="tile" href="./inventar/" title="Vorräte und Einrichtung erfassen">
+                <span class="tile-icon" style="background:var(--akzent-inventar)">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                        <path d="M12 2.2 3 6.8v10.4l9 4.6 9-4.6V6.8L12 2.2Zm0 2.24 6.46 3.3L12 11.04 5.54 7.74 12 4.44ZM5 9.3l6 3.06v7.86L5 17.16V9.3Zm8 10.92v-7.86l6-3.06v7.86l-6 3.06Z"/>
+                    </svg>
+                </span>
+                <span class="tile-label">Inventar</span>
             </a>
 
-            <a href="./kalender/" class="kachel">
-                <span class="kachel-icon">📅</span>
-                <span class="kachel-titel">Ferienkalender</span>
+            <a class="tile" href="./kalender/" title="Ferien und Aktivitäten eintragen">
+                <span class="tile-icon" style="background:var(--akzent-kalender)">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                        <path d="M8 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1ZM6 10v9h12v-9H6Zm2 2h3v3H8v-3Z"/>
+                    </svg>
+                </span>
+                <span class="tile-label">Ferienkalender</span>
             </a>
 
         </div>
 
-    </div>
+    </main>
 
     <script src="app.js"></script>
 

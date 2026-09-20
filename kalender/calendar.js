@@ -1,5 +1,7 @@
 import { db } from "./firebase-config.js";
 import {
+    arrayRemove,
+    arrayUnion,
     collection,
     doc,
     documentId,
@@ -8,7 +10,8 @@ import {
     query,
     setDoc,
     startAt,
-    endAt
+    endAt,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const MEIN_NAME_KEY = "cortasiell_kalender_name";
@@ -18,15 +21,20 @@ const MONATSNAMEN = [
     "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
 
+const MONATSNAMEN_KURZ = [
+    "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+    "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
+];
+
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 const heute = new Date();
 
-let aktuellesJahr = heute.getFullYear();
-let aktuellerMonat = heute.getMonth(); // 0-11
+let ansicht = "monat"; // "monat" | "woche"
+let cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
-let unsubscribeMonat = null;
-let ausgewaehlterTag = null;
+let unsubscribeZeitraum = null;
+let ausgewaehlteTage = new Set();
 let meinName = localStorage.getItem(MEIN_NAME_KEY) || "";
 
 init();
@@ -34,8 +42,8 @@ init();
 function init() {
 
     renderNameLeiste();
-    abonniereMonat(aktuellesJahr, aktuellerMonat);
-    renderKalender();
+    abonniereZeitraum();
+    renderAlles();
 
 }
 
@@ -43,12 +51,24 @@ function pad(n) {
     return String(n).padStart(2, "0");
 }
 
-function datumZuId(jahr, monat, tag) {
-    return `${jahr}-${pad(monat + 1)}-${pad(tag)}`;
+function datumZuId(datum) {
+    return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
+}
+
+function idZuDatum(id) {
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return new Date(jahr, monat - 1, tag);
 }
 
 function anzahlTageImMonat(jahr, monat) {
     return new Date(jahr, monat + 1, 0).getDate();
+}
+
+function montagDerWoche(datum) {
+    const versatz = (datum.getDay() + 6) % 7; // Mo=0 ... So=6
+    const montag = new Date(datum);
+    montag.setDate(datum.getDate() - versatz);
+    return montag;
 }
 
 // HTML-Escaping für alles, was Nutzer als Freitext eingeben (Namen,
@@ -66,14 +86,39 @@ function escapeHtml(text) {
 
 }
 
-function abonniereMonat(jahr, monat) {
+// Grenzen des aktuell sichtbaren Zeitraums (Monat oder Woche) rund um
+// cursorDatum.
+function zeitraumGrenzen() {
 
-    if (unsubscribeMonat) {
-        unsubscribeMonat();
+    if (ansicht === "woche") {
+
+        const von = montagDerWoche(cursorDatum);
+        const bis = new Date(von);
+        bis.setDate(von.getDate() + 6);
+
+        return { von, bis };
+
     }
 
-    const vonId = datumZuId(jahr, monat, 1);
-    const bisId = datumZuId(jahr, monat, anzahlTageImMonat(jahr, monat));
+    const jahr = cursorDatum.getFullYear();
+    const monat = cursorDatum.getMonth();
+
+    return {
+        von: new Date(jahr, monat, 1),
+        bis: new Date(jahr, monat, anzahlTageImMonat(jahr, monat))
+    };
+
+}
+
+function abonniereZeitraum() {
+
+    if (unsubscribeZeitraum) {
+        unsubscribeZeitraum();
+    }
+
+    const { von, bis } = zeitraumGrenzen();
+    const vonId = datumZuId(von);
+    const bisId = datumZuId(bis);
 
     const q = query(
         collection(db, "tage"),
@@ -82,12 +127,12 @@ function abonniereMonat(jahr, monat) {
         endAt(bisId)
     );
 
-    unsubscribeMonat = onSnapshot(q, snapshot => {
+    unsubscribeZeitraum = onSnapshot(q, snapshot => {
 
-        // Nur den sichtbaren Monat neu befüllen – Tage ohne Dokument
+        // Nur den sichtbaren Zeitraum neu befüllen – Tage ohne Dokument
         // (also ohne Eintrag) bleiben einfach weg.
-        for (let tag = 1; tag <= anzahlTageImMonat(jahr, monat); tag++) {
-            delete tageDaten[datumZuId(jahr, monat, tag)];
+        for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
+            delete tageDaten[datumZuId(tag)];
         }
 
         snapshot.forEach(docSnap => {
@@ -95,10 +140,7 @@ function abonniereMonat(jahr, monat) {
         });
 
         renderKalender();
-
-        if (ausgewaehlterTag) {
-            renderTagPanel();
-        }
+        renderAuswahlLeiste();
 
     }, error => {
 
@@ -111,23 +153,41 @@ function abonniereMonat(jahr, monat) {
 
 }
 
-function monatWechseln(delta) {
+function renderAlles() {
 
-    aktuellerMonat += delta;
+    renderAnsichtUmschalter();
+    renderVonBisLeiste();
+    renderKalender();
+    renderAuswahlLeiste();
 
-    if (aktuellerMonat < 0) {
-        aktuellerMonat = 11;
-        aktuellesJahr--;
-    } else if (aktuellerMonat > 11) {
-        aktuellerMonat = 0;
-        aktuellesJahr++;
+}
+
+function ansichtWechseln(neu) {
+
+    if (neu === ansicht) {
+        return;
     }
 
-    ausgewaehlterTag = null;
+    ansicht = neu;
+    ausgewaehlteTage.clear();
 
-    abonniereMonat(aktuellesJahr, aktuellerMonat);
-    renderKalender();
-    renderTagPanel();
+    abonniereZeitraum();
+    renderAlles();
+
+}
+
+function zeitraumWechseln(delta) {
+
+    if (ansicht === "woche") {
+        cursorDatum.setDate(cursorDatum.getDate() + delta * 7);
+    } else {
+        cursorDatum.setMonth(cursorDatum.getMonth() + delta);
+    }
+
+    ausgewaehlteTage.clear();
+
+    abonniereZeitraum();
+    renderAlles();
 
 }
 
@@ -155,17 +215,89 @@ function speichereMeinName() {
 
 }
 
-function renderKalender() {
+function renderAnsichtUmschalter() {
 
-    document.getElementById("monatsNavigation").innerHTML = `
-        <button onclick="window.monatWechseln(-1)" class="nav-button">‹</button>
-        <span class="monats-titel">${MONATSNAMEN[aktuellerMonat]} ${aktuellesJahr}</span>
-        <button onclick="window.monatWechseln(1)" class="nav-button">›</button>
+    document.getElementById("ansichtUmschalter").innerHTML = `
+        <div class="ansicht-umschalter">
+            <button
+                class="umschalt-button ${ansicht === "monat" ? "aktiv" : ""}"
+                onclick="window.ansichtWechseln('monat')"
+            >Monat</button>
+            <button
+                class="umschalt-button ${ansicht === "woche" ? "aktiv" : ""}"
+                onclick="window.ansichtWechseln('woche')"
+            >Woche</button>
+        </div>
     `;
 
-    const ersterWochentag = (new Date(aktuellesJahr, aktuellerMonat, 1).getDay() + 6) % 7; // Mo=0
-    const anzahlTage = anzahlTageImMonat(aktuellesJahr, aktuellerMonat);
-    const heuteId = datumZuId(heute.getFullYear(), heute.getMonth(), heute.getDate());
+}
+
+function renderVonBisLeiste() {
+
+    document.getElementById("vonBisLeiste").innerHTML = `
+        <div class="von-bis-leiste">
+            <input type="date" id="vonDatum">
+            <span class="von-bis-trenner">–</span>
+            <input type="date" id="bisDatum">
+            <button onclick="window.bereichAuswaehlen()" class="von-bis-button">
+                Bereich auswählen
+            </button>
+        </div>
+    `;
+
+}
+
+function bereichAuswaehlen() {
+
+    const vonWert = document.getElementById("vonDatum").value;
+    const bisWert = document.getElementById("bisDatum").value;
+
+    if (!vonWert || !bisWert) {
+        alert("Bitte Von- und Bis-Datum wählen.");
+        return;
+    }
+
+    const von = idZuDatum(vonWert);
+    const bis = idZuDatum(bisWert);
+
+    if (von > bis) {
+        alert("Das Von-Datum muss vor dem Bis-Datum liegen.");
+        return;
+    }
+
+    for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
+        ausgewaehlteTage.add(datumZuId(tag));
+    }
+
+    renderKalender();
+    renderAuswahlLeiste();
+
+}
+
+function renderKalender() {
+
+    if (ansicht === "woche") {
+        renderWochenansicht();
+    } else {
+        renderMonatsansicht();
+    }
+
+}
+
+function renderMonatsansicht() {
+
+    const jahr = cursorDatum.getFullYear();
+    const monat = cursorDatum.getMonth();
+
+    document.getElementById("monatsNavigation").innerHTML = `
+        <button onclick="window.zeitraumWechseln(-1)" class="nav-button">‹</button>
+        <span class="zeitraum-titel">${MONATSNAMEN[monat]} ${jahr}</span>
+        <button onclick="window.zeitraumWechseln(1)" class="nav-button">›</button>
+    `;
+
+    const ersterWochentag = (new Date(jahr, monat, 1).getDay() + 6) % 7; // Mo=0
+    const anzahlTage = anzahlTageImMonat(jahr, monat);
+    const heuteId = datumZuId(heute);
 
     let zellen = "";
 
@@ -175,7 +307,7 @@ function renderKalender() {
 
     for (let tag = 1; tag <= anzahlTage; tag++) {
 
-        const id = datumZuId(aktuellesJahr, aktuellerMonat, tag);
+        const id = datumZuId(new Date(jahr, monat, tag));
         const eintrag = tageDaten[id];
         const personen = eintrag?.personen || [];
         const aktivitaet = eintrag?.aktivitaet || "";
@@ -194,10 +326,10 @@ function renderKalender() {
             : "";
 
         const heuteKlasse = id === heuteId ? " heute" : "";
-        const ausgewaehltKlasse = id === ausgewaehlterTag ? " ausgewaehlt" : "";
+        const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
 
         zellen += `
-            <div class="tag-zelle${heuteKlasse}${ausgewaehltKlasse}" onclick="window.oeffneTag('${id}')">
+            <div class="tag-zelle${heuteKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
                 <div class="tag-nummer">${tag}</div>
                 <div class="person-chips">${chips}${mehrChip}</div>
                 ${aktivitaetSnippet}
@@ -217,36 +349,119 @@ function renderKalender() {
 
 }
 
-function oeffneTag(id) {
+function renderWochenansicht() {
 
-    ausgewaehlterTag = id;
-    renderKalender();
-    renderTagPanel();
+    const montag = montagDerWoche(cursorDatum);
+    const sonntag = new Date(montag);
+    sonntag.setDate(montag.getDate() + 6);
+
+    const titel = montag.getMonth() === sonntag.getMonth()
+        ? `${montag.getDate()}.–${sonntag.getDate()}. ${MONATSNAMEN[montag.getMonth()]} ${montag.getFullYear()}`
+        : `${montag.getDate()}. ${MONATSNAMEN_KURZ[montag.getMonth()]} – ${sonntag.getDate()}. ${MONATSNAMEN_KURZ[sonntag.getMonth()]} ${sonntag.getFullYear()}`;
+
+    document.getElementById("monatsNavigation").innerHTML = `
+        <button onclick="window.zeitraumWechseln(-1)" class="nav-button">‹</button>
+        <span class="zeitraum-titel">${titel}</span>
+        <button onclick="window.zeitraumWechseln(1)" class="nav-button">›</button>
+    `;
+
+    const heuteId = datumZuId(heute);
+
+    let zeilen = "";
+
+    for (let i = 0; i < 7; i++) {
+
+        const tagDatum = new Date(montag);
+        tagDatum.setDate(montag.getDate() + i);
+
+        const id = datumZuId(tagDatum);
+        const eintrag = tageDaten[id];
+        const personen = eintrag?.personen || [];
+        const aktivitaet = eintrag?.aktivitaet || "";
+
+        const chips = personen.length
+            ? personen.map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join("")
+            : `<span class="wochen-leer-hinweis">Niemand eingetragen</span>`;
+
+        const heuteKlasse = id === heuteId ? " heute" : "";
+        const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
+
+        zeilen += `
+            <div class="wochen-zeile${heuteKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
+                <div class="wochen-datum">
+                    <span class="wochen-wochentag">${WOCHENTAGE[i]}</span>
+                    <span class="wochen-tagnummer">${tagDatum.getDate()}.${pad(tagDatum.getMonth() + 1)}.</span>
+                </div>
+                <div class="wochen-inhalt">
+                    <div class="person-chips">${chips}</div>
+                    ${aktivitaet ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>` : ""}
+                </div>
+            </div>
+        `;
+
+    }
+
+    document.getElementById("kalenderGrid").innerHTML = `
+        <div class="wochen-liste">
+            ${zeilen}
+        </div>
+    `;
 
 }
 
-function schliesseTag() {
+function toggleTag(id) {
 
-    ausgewaehlterTag = null;
+    if (ausgewaehlteTage.has(id)) {
+        ausgewaehlteTage.delete(id);
+    } else {
+        ausgewaehlteTage.add(id);
+    }
+
     renderKalender();
-    renderTagPanel();
+    renderAuswahlLeiste();
 
 }
 
-function renderTagPanel() {
+function auswahlAufheben() {
 
-    const panel = document.getElementById("tagPanel");
+    ausgewaehlteTage.clear();
+    renderKalender();
+    renderAuswahlLeiste();
 
-    if (!ausgewaehlterTag) {
-        panel.innerHTML = "";
+}
+
+function formatDatumKurz(id) {
+
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return `${tag}. ${MONATSNAMEN_KURZ[monat - 1]}`;
+
+}
+
+function renderAuswahlLeiste() {
+
+    const box = document.getElementById("auswahlLeiste");
+
+    if (ausgewaehlteTage.size === 0) {
+        box.innerHTML = "";
         return;
     }
 
-    const eintrag = tageDaten[ausgewaehlterTag] || { personen: [], aktivitaet: "" };
+    if (ausgewaehlteTage.size === 1) {
+        renderEinzelTagDetail(box, [...ausgewaehlteTage][0]);
+        return;
+    }
+
+    renderMehrfachAuswahl(box);
+
+}
+
+function renderEinzelTagDetail(box, id) {
+
+    const eintrag = tageDaten[id] || { personen: [], aktivitaet: "" };
     const personen = eintrag.personen || [];
     const binDabei = meinName && personen.includes(meinName);
 
-    const [jahr, monat, tag] = ausgewaehlterTag.split("-").map(Number);
+    const [jahr, monat, tag] = id.split("-").map(Number);
     const datumText = `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
 
     const personenListe = personen.length
@@ -256,14 +471,14 @@ function renderTagPanel() {
                 <button
                     class="entfernen-button"
                     data-name="${escapeHtml(name)}"
-                    onclick="window.entfernePerson('${ausgewaehlterTag}', this.dataset.name)"
+                    onclick="window.entfernePerson('${id}', this.dataset.name)"
                 >✕</button>
             </li>
         `).join("")
         : "<li class=\"leer-hinweis\">Noch niemand eingetragen.</li>";
 
-    panel.innerHTML = `
-        <div class="tag-panel-inhalt">
+    box.innerHTML = `
+        <div class="auswahl-panel">
 
             <h2>${datumText}</h2>
 
@@ -271,7 +486,7 @@ function renderTagPanel() {
                 ${personenListe}
             </ul>
 
-            <button onclick="window.ichBinDabei('${ausgewaehlterTag}')" ${binDabei ? "disabled" : ""}>
+            <button onclick="window.ichBinDabei('${id}')" ${binDabei ? "disabled" : ""}>
                 ${binDabei ? "Du bist eingetragen ✓" : "Ich bin dabei"}
             </button>
 
@@ -280,12 +495,12 @@ function renderTagPanel() {
                 <textarea id="aktivitaetFeld" rows="3">${escapeHtml(eintrag.aktivitaet)}</textarea>
             </label>
 
-            <button onclick="window.speichereAktivitaet('${ausgewaehlterTag}')">
+            <button onclick="window.speichereAktivitaet('${id}')">
                 Aktivität speichern
             </button>
 
-            <button onclick="window.schliesseTag()" class="abbrechen-button">
-                Schliessen
+            <button onclick="window.auswahlAufheben()" class="abbrechen-button">
+                Auswahl aufheben
             </button>
 
         </div>
@@ -293,24 +508,72 @@ function renderTagPanel() {
 
 }
 
+function renderMehrfachAuswahl(box) {
+
+    const idsSortiert = [...ausgewaehlteTage].sort();
+
+    const chips = idsSortiert
+        .map(id => `<span class="person-chip datum-chip">${formatDatumKurz(id)}</span>`)
+        .join("");
+
+    box.innerHTML = `
+        <div class="auswahl-panel">
+
+            <h2>${ausgewaehlteTage.size} Tage ausgewählt</h2>
+
+            <div class="person-chips ausgewaehlte-tage-chips">${chips}</div>
+
+            <label class="aktivitaet-label">
+                Name für alle ausgewählten Tage:
+                <input type="text" id="bulkNameFeld" value="${escapeHtml(meinName)}" placeholder="Name">
+            </label>
+
+            <button onclick="window.bulkHinzufuegen()">
+                Hinzufügen
+            </button>
+
+            <button onclick="window.auswahlAufheben()" class="abbrechen-button">
+                Auswahl aufheben
+            </button>
+
+        </div>
+    `;
+
+}
+
+async function bulkHinzufuegen() {
+
+    const name = document.getElementById("bulkNameFeld").value.trim();
+
+    if (!name) {
+        alert("Bitte einen Namen eingeben.");
+        return;
+    }
+
+    const batch = writeBatch(db);
+
+    ausgewaehlteTage.forEach(id => {
+        batch.set(doc(db, "tage", id), { personen: arrayUnion(name) }, { merge: true });
+    });
+
+    await batch.commit();
+
+    ausgewaehlteTage.clear();
+    renderKalender();
+    renderAuswahlLeiste();
+
+}
+
 async function ichBinDabei(id) {
 
     if (!meinName) {
-
         alert("Bitte zuerst oben deinen Namen eintragen.");
-        return;
-
-    }
-
-    const bestehend = tageDaten[id]?.personen || [];
-
-    if (bestehend.includes(meinName)) {
         return;
     }
 
     await setDoc(
         doc(db, "tage", id),
-        { personen: [...bestehend, meinName] },
+        { personen: arrayUnion(meinName) },
         { merge: true }
     );
 
@@ -318,11 +581,9 @@ async function ichBinDabei(id) {
 
 async function entfernePerson(id, name) {
 
-    const bestehend = tageDaten[id]?.personen || [];
-
     await setDoc(
         doc(db, "tage", id),
-        { personen: bestehend.filter(n => n !== name) },
+        { personen: arrayRemove(name) },
         { merge: true }
     );
 
@@ -342,10 +603,13 @@ async function speichereAktivitaet(id) {
 
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
-window.monatWechseln = monatWechseln;
+window.ansichtWechseln = ansichtWechseln;
+window.zeitraumWechseln = zeitraumWechseln;
 window.speichereMeinName = speichereMeinName;
-window.oeffneTag = oeffneTag;
-window.schliesseTag = schliesseTag;
+window.bereichAuswaehlen = bereichAuswaehlen;
+window.toggleTag = toggleTag;
+window.auswahlAufheben = auswahlAufheben;
+window.bulkHinzufuegen = bulkHinzufuegen;
 window.ichBinDabei = ichBinDabei;
 window.entfernePerson = entfernePerson;
 window.speichereAktivitaet = speichereAktivitaet;

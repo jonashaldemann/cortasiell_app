@@ -1,0 +1,76 @@
+/* Zentrale Farbpalette der Cortasiell-App.
+   Um die ganze App umzufärben: nur die vier --basis-*-Werte unten ändern,
+   alle Helligkeitsstufen und Akzentfarben leiten sich automatisch daraus
+   ab. Um zu ändern, welche Farbe zu welchem Bereich gehört: nur die
+   --akzent-*-Zuweisungen tauschen. */
+
+@font-face {
+    font-family: "Nudica-Light";
+    src:
+        url("./fonts/nudica-light-webfont.woff2") format("woff2"),
+        url("./fonts/nudica-light-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Nudica-Medium";
+    src:
+        url("./fonts/nudica-medium-webfont.woff2") format("woff2"),
+        url("./fonts/nudica-medium-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+:root {
+    /* Basis-Palette – hier ändern, um die ganze App umzufärben */
+    --basis-navy: #12354e;
+    --basis-oliv: #819238;
+    --basis-rot: #a62c37;
+    --basis-anthrazit: #34454c;
+
+    /* Je Basisfarbe drei zusätzliche Helligkeitsstufen, automatisch
+       abgeleitet – ändern sich mit, wenn oben eine Basisfarbe geändert
+       wird. */
+    --navy: var(--basis-navy);
+    --navy-dunkel: color-mix(in srgb, var(--basis-navy) 85%, black);
+    --navy-hell: color-mix(in srgb, var(--basis-navy) 80%, white);
+    --navy-blass: color-mix(in srgb, var(--basis-navy) 12%, white);
+
+    --oliv: var(--basis-oliv);
+    --oliv-dunkel: color-mix(in srgb, var(--basis-oliv) 85%, black);
+    --oliv-hell: color-mix(in srgb, var(--basis-oliv) 80%, white);
+    --oliv-blass: color-mix(in srgb, var(--basis-oliv) 12%, white);
+
+    --rot: var(--basis-rot);
+    --rot-dunkel: color-mix(in srgb, var(--basis-rot) 85%, black);
+    --rot-hell: color-mix(in srgb, var(--basis-rot) 80%, white);
+    --rot-blass: color-mix(in srgb, var(--basis-rot) 12%, white);
+
+    --anthrazit: var(--basis-anthrazit);
+    --anthrazit-dunkel: color-mix(in srgb, var(--basis-anthrazit) 85%, black);
+    --anthrazit-hell: color-mix(in srgb, var(--basis-anthrazit) 80%, white);
+    --anthrazit-blass: color-mix(in srgb, var(--basis-anthrazit) 12%, white);
+
+    /* Zuordnung Farbe -> Bereich – hier ändern, um die Zuordnung zu
+       tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
+    --akzent-haupt: var(--navy);
+    --akzent-haupt-dunkel: var(--navy-dunkel);
+    --akzent-inventar: var(--oliv);
+    --akzent-inventar-dunkel: var(--oliv-dunkel);
+    --akzent-kalender: var(--rot);
+    --akzent-kalender-dunkel: var(--rot-dunkel);
+    --akzent-reserve: var(--anthrazit);
+    --akzent-reserve-dunkel: var(--anthrazit-dunkel);
+
+    /* Neutrale Oberflächen mit leichtem Navy-Hauch */
+    --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);
+    --surface: color-mix(in srgb, var(--basis-navy) 2%, #fbfaf8);
+    --surface-2: color-mix(in srgb, var(--basis-navy) 7%, #ece9e4);
+    --border: color-mix(in srgb, var(--basis-navy) 12%, #e2ded7);
+    --text: color-mix(in srgb, var(--basis-navy) 15%, #2a2420);
+    --text-muted: color-mix(in srgb, var(--basis-navy) 12%, #8a8175);
+
+    --font-light: "Nudica-Light", -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-medium: "Nudica-Medium", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
