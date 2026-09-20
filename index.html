@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>Inventar Cortasiell</title>
+
+    <title>Cortasiell-App</title>
 
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" href="shared/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="shared/icons/icon-192.png">
     <meta name="theme-color" content="#3f6b3a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Cortasiell">
@@ -20,24 +20,22 @@
 
     <div class="container">
 
-        <h1>Inventur Cortasiell</h1>
+        <h1>Cortasiell-App</h1>
 
-        <div id="fortschritt"></div>
+        <div class="kacheln">
 
-        <div id="ort"></div>
+            <a href="./inventar/" class="kachel">
+                <span class="kachel-icon">📦</span>
+                <span class="kachel-titel">Inventar</span>
+            </a>
 
-        <div id="frage"></div>
+            <a href="./kalender/" class="kachel">
+                <span class="kachel-icon">📅</span>
+                <span class="kachel-titel">Ferienkalender</span>
+            </a>
 
-        <div id="resultat"></div>
-
-    </div>
-
-    <div id="sync-leiste">
-        <div class="sync-buttons">
-            <button onclick="geheZumStart()" class="start-button">⏮ Start</button>
-            <button onclick="synchronisieren()">🔄 Synchronisieren</button>
         </div>
-        <span id="syncStatus"></span>
+
     </div>
 
     <script src="app.js"></script>

@@ -1,0 +1,323 @@
+:root {
+    /* Alphütten-Palette ("Mountain Cabin") */
+    --farbe-primaer: #52633d;
+    --farbe-primaer-hover: #41522c;
+
+    --farbe-akzent: #563928;
+    --farbe-akzent-hover: rgb(90, 67, 41);
+
+    --farbe-neutral-rand: #a79c8e;
+    --farbe-neutral-text: #6b6255;
+    --farbe-neutral-hover-bg: #f2eee8;
+
+    --farbe-hintergrund: #f4f1ea;
+    --farbe-text-dunkel: #2a2118;
+    --farbe-text-gedaempft: #8a8175;
+    --farbe-rand-hell: #ddd4c6;
+}
+
+@font-face {
+    font-family: "Nudica-Light";
+    src:
+        url("../shared/fonts/nudica-light-webfont.woff2") format("woff2"),
+        url("../shared/fonts/nudica-light-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Nudica-Medium";
+    src:
+        url("../shared/fonts/nudica-medium-webfont.woff2") format("woff2"),
+        url("../shared/fonts/nudica-medium-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: "Nudica-Light", sans-serif;
+    font-size: 20px;
+    background-color: var(--farbe-hintergrund);
+
+    margin: 0;
+    padding: 20px;
+    padding-bottom: 90px;
+
+    display: flex;
+    justify-content: center;
+}
+
+#sync-leiste {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    background: white;
+    border-top: 1px solid var(--farbe-rand-hell);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+
+    padding: 10px 16px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    z-index: 100;
+}
+
+.sync-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+#sync-leiste button {
+    width: auto;
+    flex-shrink: 0;
+
+    margin-top: 0;
+    padding: 10px 16px;
+
+    font-size: 1rem;
+    min-height: auto;
+}
+
+.start-button {
+    background: var(--farbe-akzent);
+    color: white;
+    border: none;
+}
+
+.start-button:hover {
+    background: var(--farbe-akzent-hover);
+}
+
+#sync-leiste #syncStatus {
+    font-size: 0.85rem;
+    color: var(--farbe-neutral-text);
+    text-align: center;
+    line-height: 1.3;
+}
+
+.container {
+    width: 100%;
+    max-width: 420px;
+
+    background: white;
+
+    border-radius: 16px;
+    padding: 24px;
+
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+
+    text-align: center;
+}
+
+h1 {
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+}
+
+.produkt {
+    font-family: "Nudica-Medium", sans-serif;
+}
+
+#ort {
+    font-size: 1.3rem;
+    color: var(--farbe-text-dunkel);
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+#fortschritt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    margin-bottom: 20px;
+    color: var(--farbe-text-gedaempft);
+    font-size: 0.9rem;
+}
+
+h2 {
+    font-size: 1.44rem;
+    margin-bottom: 20px;
+}
+
+button {
+    width: 100%;
+
+    padding: 12px;
+
+    margin-top: 8px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: var(--farbe-primaer);
+    color: white;
+
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.04rem;
+    font-weight: bold;
+
+    cursor: pointer;
+    min-height: 48px;
+}
+
+button:hover {
+    background: var(--farbe-primaer-hover);
+}
+
+.ja-nein-reihe {
+    display: flex;
+    gap: 10px;
+}
+
+.ja-nein-reihe button {
+    width: auto;
+    flex: 1;
+}
+
+.neuer-eintrag-button {
+    background: var(--farbe-akzent);
+    color: white;
+    border: none;
+}
+
+.neuer-eintrag-button:hover {
+    background: var(--farbe-akzent-hover);
+}
+
+.abbrechen-button {
+    background: white;
+    color: var(--farbe-neutral-text);
+    border: 1px solid var(--farbe-neutral-rand);
+}
+
+.abbrechen-button:hover {
+    background: var(--farbe-neutral-hover-bg);
+}
+
+.zurueck-button,
+.vor-button {
+    width: auto;
+    display: inline;
+
+    background: none;
+    color: inherit;
+    border: none;
+
+    padding: 0;
+    margin: 0;
+
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: normal;
+
+    cursor: pointer;
+    min-height: auto;
+}
+
+.zurueck-button:hover,
+.vor-button:hover {
+    color: var(--farbe-neutral-text);
+    background: none;
+    text-decoration: underline;
+}
+
+input[type="text"] {
+    width: 100%;
+
+    padding: 15px;
+
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.2rem;
+    min-height: 50px;
+
+    border: 1px solid var(--farbe-rand-hell);
+    border-radius: 12px;
+
+    box-sizing: border-box;
+
+    margin-top: 10px;
+}
+
+input[type="number"] {
+    width: 100%;
+
+    padding: 15px;
+    padding-right: 90px;
+
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.5rem;
+    min-height: 60px;
+    text-align: center;
+
+    border: 1px solid var(--farbe-rand-hell);
+    border-radius: 12px;
+
+    box-sizing: border-box;
+}
+
+.mengen-feld {
+    position: relative;
+}
+
+.mengen-feld .einheit-suffix {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    color: var(--farbe-text-gedaempft);
+    font-family: "Nudica-Light", sans-serif;
+    font-size: 1rem;
+
+    pointer-events: none;
+}
+
+pre {
+    text-align: left;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+}
+
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        max-width: 100%;
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 1.92rem;
+    }
+
+    h2 {
+        font-size: 1.6rem;
+    }
+
+    button {
+        font-size: 1.12rem;
+        min-height: 56px;
+    }
+
+    input[type="number"] {
+        font-size: 1.6rem;
+        min-height: 70px;
+    }
+
+    #fortschritt,
+    #ort {
+        font-size: 1.1rem;
+    }
+}

@@ -1,0 +1,309 @@
+:root {
+    --farbe-primaer: #52633d;
+    --farbe-primaer-hover: #41522c;
+
+    --farbe-akzent: #563928;
+    --farbe-akzent-hover: rgb(90, 67, 41);
+
+    --farbe-neutral-rand: #a79c8e;
+    --farbe-neutral-text: #6b6255;
+    --farbe-neutral-hover-bg: #f2eee8;
+
+    --farbe-hintergrund: #f4f1ea;
+    --farbe-text-dunkel: #2a2118;
+    --farbe-text-gedaempft: #8a8175;
+    --farbe-rand-hell: #ddd4c6;
+}
+
+@font-face {
+    font-family: "Nudica-Light";
+    src:
+        url("../shared/fonts/nudica-light-webfont.woff2") format("woff2"),
+        url("../shared/fonts/nudica-light-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Nudica-Medium";
+    src:
+        url("../shared/fonts/nudica-medium-webfont.woff2") format("woff2"),
+        url("../shared/fonts/nudica-medium-webfont.woff") format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: "Nudica-Light", sans-serif;
+    font-size: 16px;
+    background-color: var(--farbe-hintergrund);
+
+    margin: 0;
+    padding: 20px;
+
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 480px;
+
+    background: white;
+
+    border-radius: 16px;
+    padding: 20px;
+
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.kopfzeile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.start-link {
+    color: var(--farbe-neutral-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.start-link:hover {
+    text-decoration: underline;
+}
+
+h1 {
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.3rem;
+    color: var(--farbe-text-dunkel);
+    margin: 0;
+}
+
+.name-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--farbe-neutral-text);
+    margin-bottom: 16px;
+}
+
+.name-label input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--farbe-rand-hell);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+#monatsNavigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.nav-button {
+    background: var(--farbe-primaer);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.nav-button:hover {
+    background: var(--farbe-primaer-hover);
+}
+
+.monats-titel {
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1.1rem;
+    min-width: 140px;
+    text-align: center;
+}
+
+.wochentage-reihe,
+.tage-raster {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.wochentag {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--farbe-text-gedaempft);
+    padding-bottom: 4px;
+}
+
+.tag-zelle {
+    min-height: 64px;
+    border: 1px solid var(--farbe-rand-hell);
+    border-radius: 8px;
+    padding: 4px;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.tag-zelle:hover {
+    background: var(--farbe-neutral-hover-bg);
+}
+
+.tag-zelle.leer {
+    border: none;
+    cursor: default;
+}
+
+.tag-zelle.heute {
+    border-color: var(--farbe-primaer);
+    border-width: 2px;
+}
+
+.tag-zelle.ausgewaehlt {
+    background: var(--farbe-neutral-hover-bg);
+    border-color: var(--farbe-akzent);
+}
+
+.tag-nummer {
+    font-size: 0.8rem;
+    color: var(--farbe-text-dunkel);
+    font-weight: bold;
+}
+
+.person-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.person-chip {
+    background: var(--farbe-primaer);
+    color: white;
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.person-chip.mehr {
+    background: var(--farbe-neutral-rand);
+}
+
+.tag-aktivitaet {
+    font-size: 0.6rem;
+    color: var(--farbe-text-gedaempft);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tagPanel {
+    margin-top: 16px;
+}
+
+.tag-panel-inhalt {
+    border-top: 1px solid var(--farbe-rand-hell);
+    padding-top: 16px;
+}
+
+.tag-panel-inhalt h2 {
+    font-size: 1.1rem;
+    margin: 0 0 12px;
+}
+
+.personen-liste {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+}
+
+.personen-liste li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--farbe-neutral-hover-bg);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+
+.leer-hinweis {
+    color: var(--farbe-text-gedaempft);
+    justify-content: center !important;
+    background: none !important;
+}
+
+.entfernen-button {
+    width: auto;
+    background: none;
+    color: var(--farbe-neutral-text);
+    border: none;
+    padding: 0 4px;
+    margin: 0;
+    min-height: auto;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.aktivitaet-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--farbe-neutral-text);
+    margin: 12px 0 4px;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: 1px solid var(--farbe-rand-hell);
+    border-radius: 8px;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 12px;
+    background: var(--farbe-primaer);
+    color: white;
+    font-family: "Nudica-Medium", sans-serif;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+button:hover {
+    background: var(--farbe-primaer-hover);
+}
+
+button:disabled {
+    background: var(--farbe-neutral-rand);
+    cursor: default;
+}
+
+.abbrechen-button {
+    background: white;
+    color: var(--farbe-neutral-text);
+    border: 1px solid var(--farbe-neutral-rand);
+}
+
+.abbrechen-button:hover {
+    background: var(--farbe-neutral-hover-bg);
+}

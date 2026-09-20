@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Inventar Cortasiell</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="icon" href="../shared/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="../shared/icons/icon-192.png">
+    <meta name="theme-color" content="#3f6b3a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Cortasiell">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>Inventur Cortasiell</h1>
+
+        <div id="fortschritt"></div>
+
+        <div id="ort"></div>
+
+        <div id="frage"></div>
+
+        <div id="resultat"></div>
+
+    </div>
+
+    <div id="sync-leiste">
+        <div class="sync-buttons">
+            <button onclick="geheZumStart()" class="start-button">⏮ Start</button>
+            <button onclick="synchronisieren()">🔄 Synchronisieren</button>
+        </div>
+        <span id="syncStatus"></span>
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
