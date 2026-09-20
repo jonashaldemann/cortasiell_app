@@ -46,13 +46,34 @@ h1 {
     margin: 0;
 }
 
+.ansicht-zeile {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-bottom: 14px;
+}
+
 .ansicht-umschalter {
     display: flex;
     gap: 6px;
+    flex: 1;
     background: var(--surface-2);
     border-radius: 10px;
     padding: 4px;
-    margin-bottom: 14px;
+}
+
+.heute-button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 8px 14px;
+    min-height: auto;
+    font-size: 0.9rem;
+    background: var(--akzent-reserve);
+}
+
+.heute-button:hover {
+    background: var(--akzent-reserve-dunkel);
 }
 
 .umschalt-button {

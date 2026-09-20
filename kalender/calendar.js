@@ -32,6 +32,8 @@ let cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate(
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
 let unsubscribeZeitraum = null;
 let ausgewaehlteTage = new Set();
+let letzterKlickId = null; // Anker für Shift-Klick-Bereiche
+let letzteAktion = "hinzugefuegt"; // "hinzugefuegt" | "entfernt" – wird bei Shift-Klick auf den ganzen Bereich angewendet
 
 function init() {
 
@@ -46,6 +48,11 @@ function pad(n) {
 
 function datumZuId(datum) {
     return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(datum.getDate())}`;
+}
+
+function idZuDatum(id) {
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return new Date(jahr, monat - 1, tag);
 }
 
 function anzahlTageImMonat(jahr, monat) {
@@ -224,6 +231,7 @@ function ansichtWechseln(neu) {
 
     ansicht = neu;
     ausgewaehlteTage.clear();
+    letzterKlickId = null;
 
     abonniereZeitraum();
     renderAlles();
@@ -239,6 +247,18 @@ function zeitraumWechseln(delta) {
     }
 
     ausgewaehlteTage.clear();
+    letzterKlickId = null;
+
+    abonniereZeitraum();
+    renderAlles();
+
+}
+
+function heuteAnzeigen() {
+
+    cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+    ausgewaehlteTage.clear();
+    letzterKlickId = null;
 
     abonniereZeitraum();
     renderAlles();
@@ -248,15 +268,18 @@ function zeitraumWechseln(delta) {
 function renderAnsichtUmschalter() {
 
     document.getElementById("ansichtUmschalter").innerHTML = `
-        <div class="ansicht-umschalter">
-            <button
-                class="umschalt-button ${ansicht === "monat" ? "aktiv" : ""}"
-                onclick="window.ansichtWechseln('monat')"
-            >Monat</button>
-            <button
-                class="umschalt-button ${ansicht === "woche" ? "aktiv" : ""}"
-                onclick="window.ansichtWechseln('woche')"
-            >Woche</button>
+        <div class="ansicht-zeile">
+            <div class="ansicht-umschalter">
+                <button
+                    class="umschalt-button ${ansicht === "monat" ? "aktiv" : ""}"
+                    onclick="window.ansichtWechseln('monat')"
+                >Monat</button>
+                <button
+                    class="umschalt-button ${ansicht === "woche" ? "aktiv" : ""}"
+                    onclick="window.ansichtWechseln('woche')"
+                >Woche</button>
+            </div>
+            <button class="heute-button" onclick="window.heuteAnzeigen()">Heute</button>
         </div>
     `;
 
@@ -324,7 +347,7 @@ function renderMonatsansicht() {
         const feiertagKlasse = feiertag ? " feiertag" : "";
 
         zellen += `
-            <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
+            <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
                 <div class="tag-nummer">${tag}</div>
                 ${feiertagLabel}
                 <div class="person-chips">${chips}${mehrChip}</div>
@@ -385,7 +408,7 @@ function renderWochenansicht() {
         const feiertagKlasse = feiertag ? " feiertag" : "";
 
         zeilen += `
-            <div class="wochen-zeile${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}')">
+            <div class="wochen-zeile${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
                 <div class="wochen-datum">
                     <span class="wochen-wochentag">${WOCHENTAGE[i]}</span>
                     <span class="wochen-tagnummer">${tagDatum.getDate()}.${pad(tagDatum.getMonth() + 1)}.</span>
@@ -408,12 +431,40 @@ function renderWochenansicht() {
 
 }
 
-function toggleTag(id) {
+function toggleTag(id, event) {
 
-    if (ausgewaehlteTage.has(id)) {
+    if (event?.shiftKey && letzterKlickId) {
+
+        // Shift-Klick: ganzen Bereich zwischen dem letzten Klick und
+        // diesem Tag mit derselben Aktion (hinzufügen/entfernen) belegen,
+        // die der letzte einzelne Klick ausgelöst hat.
+        const [von, bis] = [idZuDatum(letzterKlickId), idZuDatum(id)]
+            .sort((a, b) => a - b);
+
+        for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
+
+            const tagId = datumZuId(tag);
+
+            if (letzteAktion === "entfernt") {
+                ausgewaehlteTage.delete(tagId);
+            } else {
+                ausgewaehlteTage.add(tagId);
+            }
+
+        }
+
+    } else if (ausgewaehlteTage.has(id)) {
+
         ausgewaehlteTage.delete(id);
+        letzteAktion = "entfernt";
+        letzterKlickId = id;
+
     } else {
+
         ausgewaehlteTage.add(id);
+        letzteAktion = "hinzugefuegt";
+        letzterKlickId = id;
+
     }
 
     renderKalender();
@@ -424,6 +475,7 @@ function toggleTag(id) {
 function auswahlAufheben() {
 
     ausgewaehlteTage.clear();
+    letzterKlickId = null;
     renderKalender();
     renderAuswahlLeiste();
 
@@ -625,6 +677,7 @@ async function aktivitaetSpeichern() {
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
 window.ansichtWechseln = ansichtWechseln;
 window.zeitraumWechseln = zeitraumWechseln;
+window.heuteAnzeigen = heuteAnzeigen;
 window.toggleTag = toggleTag;
 window.auswahlAufheben = auswahlAufheben;
 window.nameHinzufuegen = nameHinzufuegen;
