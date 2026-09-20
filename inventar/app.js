@@ -742,3 +742,11 @@ function zeigeSyncStatus(text) {
     statusEl.innerHTML = text;
 
 }
+
+function hilfeOeffnen() {
+    document.getElementById("hilfeOverlay").classList.remove("hidden");
+}
+
+function hilfeSchliessen() {
+    document.getElementById("hilfeOverlay").classList.add("hidden");
+}

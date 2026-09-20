@@ -79,7 +79,7 @@ h1 {
     padding: 14px 16px;
     cursor: pointer;
     color: #fff;
-    transition: filter 0.08s ease, margin 0.12s ease;
+    transition: filter 0.08s ease;
 }
 
 .projekt-karte:hover {
@@ -158,44 +158,10 @@ select {
     color: var(--text);
 }
 
-/* Overlay / Formular */
-
-.overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(30, 26, 20, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 20;
-    padding: 20px;
-}
-
-.overlay.hidden {
-    display: none;
-}
-
+/* Overlay/Sheet-Basis kommt aus shared/theme.css – hier nur die für
+   Projekte breitere Formular-Sheet (Editor hat ein Zwei-Spalten-Raster). */
 .sheet {
-    background: var(--surface);
-    width: 100%;
     max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    border-radius: 16px;
-    padding: 20px;
-}
-
-.sheet-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-}
-
-.sheet-head h2 {
-    font-family: var(--font-medium);
-    font-size: 1.1rem;
-    margin: 0;
 }
 
 .form-group {
@@ -267,7 +233,6 @@ textarea {
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: margin 0.12s ease;
 }
 
 .status-config-zeile.dragging {

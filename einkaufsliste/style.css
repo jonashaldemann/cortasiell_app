@@ -76,7 +76,6 @@ h1 {
     background: var(--surface-2);
     border-radius: 12px;
     padding: 10px 12px;
-    transition: margin 0.12s ease;
 }
 
 .einkaufs-zeile.dragging {

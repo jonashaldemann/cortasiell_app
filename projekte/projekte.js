@@ -39,11 +39,11 @@ let dateiEntfernen = false;
 
 let statusConfigEntwurf = []; // [{ name, farbe }], Arbeitskopie im Overlay
 
-let ziehQuellIndex = null;
-let ziehZielIndex = null;
+let ziehElement = null; // die gerade gezogene .projekt-karte
+let dropErfolgreich = false;
 
-let statusZiehQuellIndex = null;
-let statusZiehZielIndex = null;
+let statusZiehElement = null;
+let statusDropErfolgreich = false;
 
 // Ältere Daten hatten `optionen` als reines String-Array – hier auf das
 // neue { name, farbe }-Format anheben, damit bestehende Status (z.B. ein
@@ -192,8 +192,9 @@ function renderListe() {
         <div class="projekt-karte"
             style="background:${farbeFuerStatus(p.status)}"
             draggable="true"
-            ondragstart="window.dragStart(event, ${index})"
-            ondragover="window.dragOver(event, ${index})"
+            data-id="${p.id}"
+            ondragstart="window.dragStart(event)"
+            ondragover="window.dragOver(event)"
             ondrop="window.dragDrop(event)"
             ondragend="window.dragEnd(event)"
             onclick="window.projektBearbeiten('${p.id}')"
@@ -221,48 +222,41 @@ function alleKartenElemente() {
     return [...document.querySelectorAll("#projekteListe .projekt-karte")];
 }
 
-function lueckeZuruecksetzen() {
-    alleKartenElemente().forEach(el => {
-        el.style.marginTop = "";
-        el.style.marginBottom = "";
-    });
-}
-
-function dragStart(event, index) {
-    ziehQuellIndex = index;
-    ziehZielIndex = index;
+// Verschiebt beim Ziehen die tatsächliche Karte live an die Zielposition
+// (statt Nachbarn per Rand auseinanderzudrücken). Das ist die robustere
+// Standard-Technik: sie kommt ohne wiederholtes Neu-Berechnen von
+// Rand-Abständen aus, die sich bei jedem dragover selbst wieder
+// verschieben würden (genau das führte vorher zum Wackeln, weil sich
+// dadurch laufend änderte, über welcher Karte die Maus gerade "wirklich"
+// stand).
+function dragStart(event) {
+    ziehElement = event.currentTarget;
+    dropErfolgreich = false;
     event.dataTransfer.effectAllowed = "move";
     event.currentTarget.classList.add("dragging");
 }
 
-function dragOver(event, hoverIndex) {
+function dragOver(event) {
 
     event.preventDefault();
 
-    if (ziehQuellIndex === null) {
+    if (!ziehElement) {
         return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect();
+    const zielEl = event.currentTarget;
+    if (zielEl === ziehElement) {
+        return;
+    }
+
+    const rect = zielEl.getBoundingClientRect();
     const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-    const zielIndex = nachUnten ? hoverIndex + 1 : hoverIndex;
 
-    if (zielIndex === ziehZielIndex) {
-        return;
+    if (nachUnten) {
+        zielEl.after(ziehElement);
+    } else {
+        zielEl.before(ziehElement);
     }
-
-    ziehZielIndex = zielIndex;
-
-    // Statt neu zu rendern (würde den gerade gezogenen Knoten zerstören
-    // und den nativen Drag abbrechen) wird nur an der Einfügestelle eine
-    // zusätzliche Lücke per Margin erzeugt – die Nachbarn rücken sichtbar
-    // auseinander, ohne die Liste neu aufzubauen.
-    const karten = alleKartenElemente();
-
-    karten.forEach((el, i) => {
-        el.style.marginTop = (i === zielIndex) ? "22px" : "";
-        el.style.marginBottom = (zielIndex === karten.length && i === karten.length - 1) ? "22px" : "";
-    });
 
 }
 
@@ -270,23 +264,12 @@ function dragOver(event, hoverIndex) {
 // (dort gibt es keine Karte, deren dragover-Handler feuern könnte).
 function dragOverListe(event) {
 
-    if (event.target !== event.currentTarget || ziehQuellIndex === null) {
+    if (event.target !== event.currentTarget || !ziehElement) {
         return;
     }
 
     event.preventDefault();
-
-    const karten = alleKartenElemente();
-    if (ziehZielIndex === karten.length) {
-        return;
-    }
-
-    ziehZielIndex = karten.length;
-
-    karten.forEach((el, i) => {
-        el.style.marginTop = "";
-        el.style.marginBottom = (i === karten.length - 1) ? "22px" : "";
-    });
+    event.currentTarget.appendChild(ziehElement);
 
 }
 
@@ -295,40 +278,35 @@ async function dragDrop(event) {
     event.preventDefault();
     event.stopPropagation(); // sonst feuert das drop-Event zusätzlich am äusseren Container erneut
 
-    if (ziehQuellIndex === null || ziehZielIndex === null) {
+    if (!ziehElement) {
         return;
     }
 
-    let ziel = ziehZielIndex;
-    if (ziehQuellIndex < ziel) {
-        ziel -= 1;
-    }
+    dropErfolgreich = true;
 
-    if (ziel !== ziehQuellIndex) {
+    const neueReihenfolge = alleKartenElemente().map(el => el.dataset.id);
 
-        const verschoben = projekte.splice(ziehQuellIndex, 1)[0];
-        projekte.splice(ziel, 0, verschoben);
+    const batch = writeBatch(db);
+    neueReihenfolge.forEach((id, i) => {
+        batch.set(doc(db, "projekte", id), { reihenfolge: i }, { merge: true });
+    });
+    await batch.commit();
 
-        const batch = writeBatch(db);
-        projekte.forEach((p, i) => {
-            batch.set(doc(db, "projekte", p.id), { reihenfolge: i }, { merge: true });
-        });
-        await batch.commit();
-
-    }
-
-    ziehQuellIndex = null;
-    ziehZielIndex = null;
-    lueckeZuruecksetzen();
-    renderListe();
+    // Lokalen Cache bis zum nächsten Snapshot schon konsistent halten.
+    projekte.sort((a, b) => neueReihenfolge.indexOf(a.id) - neueReihenfolge.indexOf(b.id));
 
 }
 
 function dragEnd(event) {
+
     event.currentTarget.classList.remove("dragging");
-    ziehQuellIndex = null;
-    ziehZielIndex = null;
-    lueckeZuruecksetzen();
+
+    if (!dropErfolgreich && ziehElement) {
+        renderListe(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
+    }
+
+    ziehElement = null;
+
 }
 
 async function statusInZeileGeaendert(id, neuerStatus) {
@@ -523,9 +501,15 @@ async function projektLoeschen(id) {
 
 // --- Status-Konfiguration ---
 
+let statusUidZaehler = 0;
+
+function neueStatusUid() {
+    return "s" + (statusUidZaehler++);
+}
+
 function oeffneStatusConfig() {
 
-    statusConfigEntwurf = statusOptionen.map(s => ({ ...s }));
+    statusConfigEntwurf = statusOptionen.map(s => ({ ...s, _uid: neueStatusUid() }));
     renderStatusConfigListe();
     document.getElementById("statusConfigOverlay").classList.remove("hidden");
 
@@ -537,98 +521,95 @@ function schliesseStatusConfig() {
 
 function renderStatusConfigListe() {
 
-    document.getElementById("statusConfigListe").innerHTML = statusConfigEntwurf.map((eintrag, i) => `
+    document.getElementById("statusConfigListe").innerHTML = statusConfigEntwurf.map(eintrag => `
         <div class="status-config-zeile"
             draggable="true"
-            ondragstart="window.statusDragStart(event, ${i})"
-            ondragover="window.statusDragOver(event, ${i})"
+            data-uid="${eintrag._uid}"
+            ondragstart="window.statusDragStart(event)"
+            ondragover="window.statusDragOver(event)"
             ondrop="window.statusDragDrop(event)"
             ondragend="window.statusDragEnd(event)"
         >
             <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
-            <input type="text" value="${escapeHtml(eintrag.name)}" oninput="window.statusOptionGeaendert(${i}, this.value)">
+            <input type="text" value="${escapeHtml(eintrag.name)}" oninput="window.statusOptionGeaendert('${eintrag._uid}', this.value)">
             <div class="farb-swatches">
                 ${FARB_VORSCHLAEGE.map(token => `
                     <button
                         type="button"
                         class="farb-swatch ${eintrag.farbe === token ? "ausgewaehlt" : ""}"
                         style="background:var(${token})"
-                        onclick="window.statusFarbeSetzen(${i}, '${token}')"
+                        onclick="window.statusFarbeSetzen('${eintrag._uid}', '${token}')"
                     ></button>
                 `).join("")}
             </div>
-            <button type="button" class="entfernen-button" onclick="window.statusOptionEntfernen(${i})">✕</button>
+            <button type="button" class="entfernen-button" onclick="window.statusOptionEntfernen('${eintrag._uid}')">✕</button>
         </div>
     `).join("");
 
 }
 
 function statusOptionHinzufuegen() {
-    statusConfigEntwurf.push({ name: "", farbe: FARB_VORSCHLAEGE[statusConfigEntwurf.length % FARB_VORSCHLAEGE.length] });
+    statusConfigEntwurf.push({ name: "", farbe: FARB_VORSCHLAEGE[statusConfigEntwurf.length % FARB_VORSCHLAEGE.length], _uid: neueStatusUid() });
     renderStatusConfigListe();
     const felder = document.querySelectorAll("#statusConfigListe input[type=text]");
     felder[felder.length - 1]?.focus();
 }
 
-function statusOptionGeaendert(index, wert) {
-    statusConfigEntwurf[index].name = wert;
+function statusOptionGeaendert(uid, wert) {
+    const eintrag = statusConfigEntwurf.find(e => e._uid === uid);
+    if (eintrag) {
+        eintrag.name = wert;
+    }
 }
 
-function statusFarbeSetzen(index, token) {
-    statusConfigEntwurf[index].farbe = token;
+function statusFarbeSetzen(uid, token) {
+    const eintrag = statusConfigEntwurf.find(e => e._uid === uid);
+    if (eintrag) {
+        eintrag.farbe = token;
+    }
     renderStatusConfigListe();
 }
 
-function statusOptionEntfernen(index) {
-    statusConfigEntwurf.splice(index, 1);
+function statusOptionEntfernen(uid) {
+    statusConfigEntwurf = statusConfigEntwurf.filter(e => e._uid !== uid);
     renderStatusConfigListe();
 }
 
-// Reihenfolge der Status wird rein lokal in statusConfigEntwurf verändert
-// (kein Firestore-Zwischenschritt nötig, da alles in einem Dokument beim
-// "Speichern" auf einmal geschrieben wird) – gleiches Lücken-Feedback wie
-// beim Verschieben der Projekte-Karten.
+// Gleiche Live-Verschiebe-Technik wie bei den Projekte-Karten (siehe
+// dragStart/dragOver dort) – Reihenfolge bleibt rein lokal in
+// statusConfigEntwurf, bis "Speichern" geklickt wird.
 function statusConfigZeilenElemente() {
     return [...document.querySelectorAll("#statusConfigListe .status-config-zeile")];
 }
 
-function statusLueckeZuruecksetzen() {
-    statusConfigZeilenElemente().forEach(el => {
-        el.style.marginTop = "";
-        el.style.marginBottom = "";
-    });
-}
-
-function statusDragStart(event, index) {
-    statusZiehQuellIndex = index;
-    statusZiehZielIndex = index;
+function statusDragStart(event) {
+    statusZiehElement = event.currentTarget;
+    statusDropErfolgreich = false;
     event.dataTransfer.effectAllowed = "move";
     event.currentTarget.classList.add("dragging");
 }
 
-function statusDragOver(event, hoverIndex) {
+function statusDragOver(event) {
 
     event.preventDefault();
 
-    if (statusZiehQuellIndex === null) {
+    if (!statusZiehElement) {
         return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect();
+    const zielEl = event.currentTarget;
+    if (zielEl === statusZiehElement) {
+        return;
+    }
+
+    const rect = zielEl.getBoundingClientRect();
     const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-    const zielIndex = nachUnten ? hoverIndex + 1 : hoverIndex;
 
-    if (zielIndex === statusZiehZielIndex) {
-        return;
+    if (nachUnten) {
+        zielEl.after(statusZiehElement);
+    } else {
+        zielEl.before(statusZiehElement);
     }
-
-    statusZiehZielIndex = zielIndex;
-
-    const zeilen = statusConfigZeilenElemente();
-    zeilen.forEach((el, i) => {
-        el.style.marginTop = (i === zielIndex) ? "16px" : "";
-        el.style.marginBottom = (zielIndex === zeilen.length && i === zeilen.length - 1) ? "16px" : "";
-    });
 
 }
 
@@ -637,31 +618,27 @@ function statusDragDrop(event) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (statusZiehQuellIndex === null || statusZiehZielIndex === null) {
+    if (!statusZiehElement) {
         return;
     }
 
-    let ziel = statusZiehZielIndex;
-    if (statusZiehQuellIndex < ziel) {
-        ziel -= 1;
-    }
+    statusDropErfolgreich = true;
 
-    if (ziel !== statusZiehQuellIndex) {
-        const verschoben = statusConfigEntwurf.splice(statusZiehQuellIndex, 1)[0];
-        statusConfigEntwurf.splice(ziel, 0, verschoben);
-    }
-
-    statusZiehQuellIndex = null;
-    statusZiehZielIndex = null;
-    renderStatusConfigListe();
+    const neueReihenfolge = statusConfigZeilenElemente().map(el => el.dataset.uid);
+    statusConfigEntwurf.sort((a, b) => neueReihenfolge.indexOf(a._uid) - neueReihenfolge.indexOf(b._uid));
 
 }
 
 function statusDragEnd(event) {
+
     event.currentTarget.classList.remove("dragging");
-    statusZiehQuellIndex = null;
-    statusZiehZielIndex = null;
-    statusLueckeZuruecksetzen();
+
+    if (!statusDropErfolgreich && statusZiehElement) {
+        renderStatusConfigListe();
+    }
+
+    statusZiehElement = null;
+
 }
 
 async function statusConfigSpeichern() {
@@ -698,6 +675,16 @@ window.checklistePunktEntfernen = checklistePunktEntfernen;
 window.dateiEntfernenKlick = dateiEntfernenKlick;
 window.projektSpeichern = projektSpeichern;
 window.projektLoeschen = projektLoeschen;
+function hilfeOeffnen() {
+    document.getElementById("hilfeOverlay").classList.remove("hidden");
+}
+
+function hilfeSchliessen() {
+    document.getElementById("hilfeOverlay").classList.add("hidden");
+}
+
+window.hilfeOeffnen = hilfeOeffnen;
+window.hilfeSchliessen = hilfeSchliessen;
 window.oeffneStatusConfig = oeffneStatusConfig;
 window.schliesseStatusConfig = schliesseStatusConfig;
 window.statusOptionHinzufuegen = statusOptionHinzufuegen;

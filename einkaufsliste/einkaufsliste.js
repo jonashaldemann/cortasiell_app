@@ -16,8 +16,8 @@ let bearbeiteterNamePinId = null;
 let bearbeitetesTextId = null;
 let aktiverFilterName = null;
 
-let ziehQuellIndex = null;
-let ziehZielIndex = null;
+let ziehElement = null; // die gerade gezogene .einkaufs-zeile
+let dropErfolgreich = false;
 
 function escapeHtml(text) {
 
@@ -153,11 +153,12 @@ function renderAktiveListe(aktive) {
         return;
     }
 
-    box.innerHTML = aktive.map((e, index) => `
+    box.innerHTML = aktive.map(e => `
         <div class="einkaufs-zeile"
             draggable="true"
-            ondragstart="window.dragStart(event, ${index})"
-            ondragover="window.dragOver(event, ${index})"
+            data-id="${e.id}"
+            ondragstart="window.dragStart(event)"
+            ondragover="window.dragOver(event)"
             ondrop="window.dragDrop(event)"
             ondragend="window.dragEnd(event)"
         >
@@ -292,70 +293,56 @@ async function namePinSpeichern(id) {
 }
 
 // --- Drag & Drop (nur innerhalb der aktiven Liste) ---
+//
+// Die gezogene Zeile wird beim Hovern direkt an die Zielposition bewegt
+// (statt Nachbarn per Rand auseinanderzudrücken) – robuster, da sich
+// nichts mehr während des Ziehens selbst verschiebt und dadurch
+// wiederholt neu berechnet werden müsste (das führte vorher zum
+// Wackeln/unzuverlässigen Drops).
 
 function aktiveZeilenElemente() {
     return [...document.querySelectorAll("#aktiveListe .einkaufs-zeile")];
 }
 
-function lueckeZuruecksetzen() {
-    aktiveZeilenElemente().forEach(el => {
-        el.style.marginTop = "";
-        el.style.marginBottom = "";
-    });
-}
-
-function dragStart(event, index) {
-    ziehQuellIndex = index;
-    ziehZielIndex = index;
+function dragStart(event) {
+    ziehElement = event.currentTarget;
+    dropErfolgreich = false;
     event.dataTransfer.effectAllowed = "move";
     event.currentTarget.classList.add("dragging");
 }
 
-function dragOver(event, hoverIndex) {
+function dragOver(event) {
 
     event.preventDefault();
 
-    if (ziehQuellIndex === null) {
+    if (!ziehElement) {
         return;
     }
 
-    const rect = event.currentTarget.getBoundingClientRect();
+    const zielEl = event.currentTarget;
+    if (zielEl === ziehElement) {
+        return;
+    }
+
+    const rect = zielEl.getBoundingClientRect();
     const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-    const zielIndex = nachUnten ? hoverIndex + 1 : hoverIndex;
 
-    if (zielIndex === ziehZielIndex) {
-        return;
+    if (nachUnten) {
+        zielEl.after(ziehElement);
+    } else {
+        zielEl.before(ziehElement);
     }
-
-    ziehZielIndex = zielIndex;
-
-    const zeilen = aktiveZeilenElemente();
-    zeilen.forEach((el, i) => {
-        el.style.marginTop = (i === zielIndex) ? "20px" : "";
-        el.style.marginBottom = (zielIndex === zeilen.length && i === zeilen.length - 1) ? "20px" : "";
-    });
 
 }
 
 function dragOverListe(event) {
 
-    if (event.target !== event.currentTarget || ziehQuellIndex === null) {
+    if (event.target !== event.currentTarget || !ziehElement) {
         return;
     }
 
     event.preventDefault();
-
-    const zeilen = aktiveZeilenElemente();
-    if (ziehZielIndex === zeilen.length) {
-        return;
-    }
-
-    ziehZielIndex = zeilen.length;
-
-    zeilen.forEach((el, i) => {
-        el.style.marginTop = "";
-        el.style.marginBottom = (i === zeilen.length - 1) ? "20px" : "";
-    });
+    event.currentTarget.appendChild(ziehElement);
 
 }
 
@@ -364,45 +351,46 @@ async function dragDrop(event) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (ziehQuellIndex === null || ziehZielIndex === null) {
+    if (!ziehElement) {
         return;
     }
 
-    let ziel = ziehZielIndex;
-    if (ziehQuellIndex < ziel) {
-        ziel -= 1;
-    }
+    dropErfolgreich = true;
 
-    if (ziel !== ziehQuellIndex) {
+    const neueReihenfolge = aktiveZeilenElemente().map(el => el.dataset.id);
 
-        const aktive = alleEintraege.filter(e => !e.erledigt);
-        const verschoben = aktive.splice(ziehQuellIndex, 1)[0];
-        aktive.splice(ziel, 0, verschoben);
-
-        const batch = writeBatch(db);
-        aktive.forEach((e, i) => {
-            batch.set(doc(db, "einkaufsliste", e.id), { reihenfolge: i }, { merge: true });
-        });
-        await batch.commit();
-
-    }
-
-    ziehQuellIndex = null;
-    ziehZielIndex = null;
-    lueckeZuruecksetzen();
-    render();
+    const batch = writeBatch(db);
+    neueReihenfolge.forEach((id, i) => {
+        batch.set(doc(db, "einkaufsliste", id), { reihenfolge: i }, { merge: true });
+    });
+    await batch.commit();
 
 }
 
 function dragEnd(event) {
+
     event.currentTarget.classList.remove("dragging");
-    ziehQuellIndex = null;
-    ziehZielIndex = null;
-    lueckeZuruecksetzen();
+
+    if (!dropErfolgreich && ziehElement) {
+        render(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
+    }
+
+    ziehElement = null;
+
 }
 
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
+function hilfeOeffnen() {
+    document.getElementById("hilfeOverlay").classList.remove("hidden");
+}
+
+function hilfeSchliessen() {
+    document.getElementById("hilfeOverlay").classList.add("hidden");
+}
+
+window.hilfeOeffnen = hilfeOeffnen;
+window.hilfeSchliessen = hilfeSchliessen;
 window.elementHinzufuegen = elementHinzufuegen;
 window.erledigtGeaendert = erledigtGeaendert;
 window.elementLoeschen = elementLoeschen;

@@ -18,9 +18,26 @@
     <div class="kopfzeile">
         <h1>Projekte</h1>
         <button id="statusConfigButton" class="icon-btn" onclick="window.oeffneStatusConfig()" title="Status-Liste bearbeiten">⚙</button>
+        <button class="icon-btn" onclick="window.hilfeOeffnen()" aria-label="Hilfe" title="Hilfe">?</button>
         <a href="../" class="icon-btn" aria-label="Startseite" title="Startseite">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z" fill="currentColor"/></svg>
         </a>
+    </div>
+
+    <div id="hilfeOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2>Hilfe</h2>
+                <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
+            </div>
+            <p>
+                Klicke auf ein Projekt, um es zu bearbeiten. Der Status
+                lässt sich direkt im Dropdown ändern, ohne den Editor zu
+                öffnen. Am Griff ⠿ links kannst du ein Projekt an eine
+                andere Stelle ziehen. Über das ⚙-Symbol oben kannst du die
+                Status-Liste samt Farben selbst anpassen.
+            </p>
+        </div>
     </div>
 
     <div class="aktionsleiste">

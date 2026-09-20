@@ -23,19 +23,39 @@
 
         <div class="kopfzeile">
             <h1>Kalender</h1>
+            <button class="icon-btn" onclick="window.hilfeOeffnen()" aria-label="Hilfe" title="Hilfe">?</button>
             <a href="../" class="icon-btn" aria-label="Startseite" title="Startseite">
                 <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z" fill="currentColor"/></svg>
             </a>
         </div>
 
-        <div id="ansichtUmschalter"></div>
+        <div class="kalender-layout">
 
-        <div id="monatsNavigation"></div>
+            <div class="kalender-hauptspalte">
+                <div id="ansichtUmschalter"></div>
+                <div id="monatsNavigation"></div>
+                <div id="kalenderGrid"></div>
+            </div>
 
-        <div id="kalenderGrid"></div>
+            <div id="auswahlLeiste" class="kalender-seitenpanel"></div>
 
-        <div id="auswahlLeiste"></div>
+        </div>
 
+    </div>
+
+    <div id="hilfeOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2>Hilfe</h2>
+                <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
+            </div>
+            <p>
+                Tippe auf einen oder mehrere Tage, um dich (oder andere)
+                einzutragen. Mit Shift+Klick wählst du gleich einen ganzen
+                Zeitraum aus. Unten kannst du Namen hinzufügen/entfernen und
+                eine Aktivität für die ausgewählten Tage eintragen.
+            </p>
+        </div>
     </div>
 
     <script type="module" src="calendar.js"></script>

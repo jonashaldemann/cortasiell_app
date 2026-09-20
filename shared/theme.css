@@ -121,3 +121,53 @@
     background: var(--surface-2);
     color: var(--text);
 }
+
+/* Overlay/Sheet – z.B. für die Hilfe-Box oder Editor-Formulare. In jeder
+   App gleich benutzbar: <div class="overlay hidden"><div class="sheet">
+   <div class="sheet-head"><h2>…</h2><button class="icon-btn">✕</button>
+   </div>…Inhalt…</div></div> */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(30, 26, 20, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    padding: 20px;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+.sheet {
+    background: var(--surface);
+    color: var(--text);
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+    padding: 20px;
+    font-family: var(--font-light);
+}
+
+.sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.sheet-head h2 {
+    font-family: var(--font-medium);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.sheet p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}

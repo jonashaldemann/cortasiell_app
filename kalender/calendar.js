@@ -33,7 +33,10 @@ const heute = new Date();
 const breitAnsichtMedia = window.matchMedia("(min-width: 900px)");
 
 function chipLimitProZelle() {
-    return breitAnsichtMedia.matches ? 10 : 3;
+    // Die Browser-Ansicht ist jetzt kompakter (Kalender + Auswahl-Leiste
+    // nebeneinander statt eine breite Spalte allein), daher ein kleinerer
+    // Wert als früher.
+    return breitAnsichtMedia.matches ? 6 : 3;
 }
 
 let ansicht = "monat"; // "monat" | "woche"
@@ -686,6 +689,16 @@ async function aktivitaetSpeichern() {
 
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
+function hilfeOeffnen() {
+    document.getElementById("hilfeOverlay").classList.remove("hidden");
+}
+
+function hilfeSchliessen() {
+    document.getElementById("hilfeOverlay").classList.add("hidden");
+}
+
+window.hilfeOeffnen = hilfeOeffnen;
+window.hilfeSchliessen = hilfeSchliessen;
 window.ansichtWechseln = ansichtWechseln;
 window.zeitraumWechseln = zeitraumWechseln;
 window.heuteAnzeigen = heuteAnzeigen;

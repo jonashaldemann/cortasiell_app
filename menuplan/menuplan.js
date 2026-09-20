@@ -228,6 +228,16 @@ async function schnellHinzufuegen() {
 }
 
 window.feldFokus = feldFokus;
+function hilfeOeffnen() {
+    document.getElementById("hilfeOverlay").classList.remove("hidden");
+}
+
+function hilfeSchliessen() {
+    document.getElementById("hilfeOverlay").classList.add("hidden");
+}
+
+window.hilfeOeffnen = hilfeOeffnen;
+window.hilfeSchliessen = hilfeSchliessen;
 window.kuechenchefSetzen = kuechenchefSetzen;
 window.menuFeldSpeichern = menuFeldSpeichern;
 window.schnellNameGeaendert = schnellNameGeaendert;
