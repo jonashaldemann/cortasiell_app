@@ -1,0 +1,184 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-light);
+    font-size: 15px;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+}
+
+.kopfzeile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(1400px, 96vw);
+    margin: 0 auto 8px;
+}
+
+h1 {
+    font-family: var(--font-medium);
+    font-size: 1.3rem;
+    color: var(--text);
+    margin: 0;
+    flex: 1;
+}
+
+.hinweis-text {
+    max-width: min(1400px, 96vw);
+    margin: 0 auto 16px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.menuplan-liste {
+    max-width: min(1400px, 96vw);
+    margin: 0 auto 24px;
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.tag-spalte {
+    flex: 0 0 230px;
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tag-datum {
+    font-family: var(--font-medium);
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.anwesende-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.anwesend-chip {
+    width: auto;
+    margin: 0;
+    padding: 5px 10px;
+    min-height: auto;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: var(--font-light);
+    font-weight: normal;
+    font-size: 0.8rem;
+}
+
+.anwesend-chip:hover {
+    background: var(--border);
+}
+
+.anwesend-chip.chef {
+    background: var(--akzent-menueplan);
+    color: #fff;
+    font-family: var(--font-medium);
+}
+
+.anwesend-chip.chef:hover {
+    background: var(--akzent-menueplan-dunkel);
+}
+
+.mahlzeit-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 4px;
+}
+
+.tag-spalte textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 44px;
+}
+
+.schnell-einkauf {
+    max-width: min(1400px, 96vw);
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.schnell-einkauf h2 {
+    font-family: var(--font-medium);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.schnell-einkauf-reihe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.schnell-einkauf-reihe input[type="text"] {
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+#schnellItemFeld {
+    flex: 2;
+    min-width: 160px;
+}
+
+#schnellNameFeld {
+    flex: 1;
+    min-width: 120px;
+}
+
+.schnell-einkauf-reihe button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 10px 16px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 12px;
+    background: var(--akzent-menueplan);
+    color: #fff;
+    font-family: var(--font-medium);
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+button:hover {
+    background: var(--akzent-menueplan-dunkel);
+}

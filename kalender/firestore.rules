@@ -38,5 +38,15 @@ service cloud.firestore {
         && request.resource.data.text.size() <= 200
         && request.resource.data.reihenfolge is number;
     }
+
+    match /menuplan/{tagId} {
+      allow read: if true;
+      allow write: if tagId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.keys().hasOnly(['kuechenchef', 'zmorge', 'zmittag', 'znacht'])
+        && request.resource.data.get('kuechenchef', '') is string
+        && request.resource.data.get('zmorge', '') is string
+        && request.resource.data.get('zmittag', '') is string
+        && request.resource.data.get('znacht', '') is string;
+    }
   }
 }

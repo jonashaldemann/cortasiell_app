@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Menüplan Cortasiell</title>
+
+    <link rel="stylesheet" href="../shared/theme.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#9a806d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Menüplan">
+</head>
+
+<body>
+
+    <div class="kopfzeile">
+        <h1>Menüplan</h1>
+        <a href="../" class="icon-btn" aria-label="Startseite" title="Startseite">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z" fill="currentColor"/></svg>
+        </a>
+    </div>
+
+    <p class="hinweis-text">
+        Zeigt alle Tage der nächsten vier Wochen, an denen laut Kalender
+        mindestens eine Person da ist.
+    </p>
+
+    <div id="tageListe" class="menuplan-liste">
+        <p class="hinweis-text">Lädt…</p>
+    </div>
+
+    <div class="schnell-einkauf">
+        <h2>Schnell zur Einkaufsliste hinzufügen</h2>
+        <div class="schnell-einkauf-reihe">
+            <input
+                type="text"
+                id="schnellItemFeld"
+                placeholder="z.B. Mehl"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();window.schnellHinzufuegen();}"
+            >
+            <input
+                type="text"
+                id="schnellNameFeld"
+                placeholder="Zuständigkeit"
+                onchange="window.schnellNameGeaendert()"
+            >
+            <button onclick="window.schnellHinzufuegen()">Hinzufügen</button>
+        </div>
+    </div>
+
+    <script type="module" src="menuplan.js"></script>
+
+</body>
+</html>

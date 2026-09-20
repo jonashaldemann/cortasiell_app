@@ -64,6 +64,14 @@
     --gold-hell: color-mix(in srgb, var(--basis-gold) 80%, white);
     --gold-blass: color-mix(in srgb, var(--basis-gold) 20%, white);
 
+    /* Sechste Farbe für den Menüplan – "Warmes Erdbraun" aus derselben
+       Farbkarte. */
+    --basis-braun: #9a806d;
+    --braun: var(--basis-braun);
+    --braun-dunkel: color-mix(in srgb, var(--basis-braun) 85%, black);
+    --braun-hell: color-mix(in srgb, var(--basis-braun) 80%, white);
+    --braun-blass: color-mix(in srgb, var(--basis-braun) 15%, white);
+
     /* Zuordnung Farbe -> Bereich – hier ändern, um die Zuordnung zu
        tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
     --akzent-haupt: var(--navy);
@@ -76,6 +84,8 @@
     --akzent-reserve-dunkel: var(--anthrazit-dunkel);
     --akzent-einkauf: var(--gold);
     --akzent-einkauf-dunkel: var(--gold-dunkel);
+    --akzent-menueplan: var(--braun);
+    --akzent-menueplan-dunkel: var(--braun-dunkel);
 
     /* Neutrale Oberflächen mit leichtem Navy-Hauch */
     --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);
