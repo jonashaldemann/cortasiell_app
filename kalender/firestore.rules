@@ -5,8 +5,8 @@ service cloud.firestore {
       allow read: if true;
       allow write: if tagId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
         && request.resource.data.keys().hasOnly(['personen', 'aktivitaet'])
-        && request.resource.data.personen is list
-        && request.resource.data.personen.size() <= 20
+        && request.resource.data.get('personen', []) is list
+        && request.resource.data.get('personen', []).size() <= 20
         && request.resource.data.get('aktivitaet', '') is string
         && request.resource.data.get('aktivitaet', '').size() <= 500;
     }
