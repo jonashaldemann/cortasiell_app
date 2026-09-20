@@ -144,7 +144,7 @@ function renderStatusSelect(selectEl, ausgewaehlt) {
 // sind frei editierbar (keine feste Liste), daher keine feste Zuordnung
 // Name -> Farbe, sondern ein einfacher Hash über einen kleinen Satz
 // blasser Palettentöne. Gleicher Status sieht so immer gleich aus.
-const STATUS_FARBTOENE = ["--oliv-blass", "--rot-blass", "--navy-blass", "--anthrazit-blass"];
+const STATUS_FARBTOENE = ["--oliv-dunkel", "--rot-dunkel", "--navy-dunkel", "--anthrazit-dunkel"];
 
 function farbeFuerStatus(status) {
 

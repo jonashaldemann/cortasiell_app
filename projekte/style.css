@@ -46,23 +46,23 @@ h1 {
 .projekte-liste {
     max-width: min(1400px, 96vw);
     margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 14px;
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .projekt-karte {
     display: flex;
     gap: 10px;
-    border-radius: 16px;
-    padding: 16px 18px;
+    border-radius: 14px;
+    padding: 14px 16px;
     cursor: pointer;
-    transition: transform 0.08s ease;
+    color: #fff;
+    transition: filter 0.08s ease;
 }
 
 .projekt-karte:hover {
-    transform: translateY(-1px);
+    filter: brightness(1.08);
 }
 
 .projekt-karte.dragging {
@@ -71,7 +71,7 @@ h1 {
 
 .karte-griff {
     flex: none;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.7);
     cursor: grab;
     padding-top: 2px;
 }
@@ -95,12 +95,12 @@ h1 {
     font-family: var(--font-medium);
     font-size: 1.1rem;
     margin: 0;
-    color: var(--text);
+    color: #fff;
 }
 
 .karte-beschreibung {
     font-size: 0.9rem;
-    color: var(--text);
+    color: rgba(255, 255, 255, 0.85);
     margin: 0;
     white-space: pre-wrap;
 }
@@ -111,24 +111,25 @@ h1 {
     align-items: center;
     gap: 10px;
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .karte-meta a {
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.85);
     font-size: 1rem;
     text-decoration: none;
 }
 
 .karte-status {
     align-self: flex-start;
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .row-action {
     width: auto;
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.75);
     font-size: 1rem;
     cursor: pointer;
     padding: 4px 6px;
@@ -138,7 +139,7 @@ h1 {
 }
 
 .row-action:hover {
-    color: var(--akzent-reserve);
+    color: #fff;
     background: none;
 }
 
