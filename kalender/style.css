@@ -430,3 +430,27 @@ button:disabled {
 .abbrechen-button:hover {
     background: var(--surface-2);
 }
+
+/* Browser-Ansicht: breiterer Kalender, damit in der Monatsansicht mehr
+   Namen pro Tag sichtbar sind, ohne dass Zellen in die Höhe wachsen und
+   den Überblick über den Monat stören. Die Chip-Anzahl pro Zelle wird
+   passend dazu in calendar.js über matchMedia gesteuert. */
+@media (min-width: 900px) {
+
+    .container {
+        max-width: 1100px;
+    }
+
+    .tage-raster .tag-zelle {
+        min-height: 90px;
+    }
+
+    .person-chip {
+        font-size: 0.7rem;
+        padding: 2px 7px;
+    }
+
+    .tag-nummer {
+        font-size: 0.9rem;
+    }
+}

@@ -27,6 +27,15 @@ const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 const heute = new Date();
 
+// Browser-Ansicht (breiterer Viewport) zeigt mehr Namen pro Tag in der
+// Monatsansicht, bevor auf "+N" zusammengefasst wird – die passende
+// Zellbreite/-höhe dafür liefert die @media-Regel in style.css.
+const breitAnsichtMedia = window.matchMedia("(min-width: 900px)");
+
+function chipLimitProZelle() {
+    return breitAnsichtMedia.matches ? 10 : 3;
+}
+
 let ansicht = "monat"; // "monat" | "woche"
 let cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
@@ -325,13 +334,15 @@ function renderMonatsansicht() {
         const aktivitaet = eintrag?.aktivitaet || "";
         const feiertag = feiertagName(tagDatumObj);
 
+        const limit = chipLimitProZelle();
+
         const chips = personen
-            .slice(0, 3)
+            .slice(0, limit)
             .map(name => `<span class="person-chip">${escapeHtml(name)}</span>`)
             .join("");
 
-        const mehrChip = personen.length > 3
-            ? `<span class="person-chip mehr">+${personen.length - 3}</span>`
+        const mehrChip = personen.length > limit
+            ? `<span class="person-chip mehr">+${personen.length - limit}</span>`
             : "";
 
         const aktivitaetSnippet = aktivitaet
@@ -685,6 +696,12 @@ window.entfernePersonAusAuswahl = entfernePersonAusAuswahl;
 window.aktivitaetSpeichern = aktivitaetSpeichern;
 
 init();
+
+// Beim Wechsel zwischen schmalem und breitem Fenster (z.B. Browserfenster
+// vergrössern) die Chip-Anzahl pro Tag neu berechnen.
+breitAnsichtMedia.addEventListener("change", () => {
+    renderKalender();
+});
 
 if ("serviceWorker" in navigator) {
 
