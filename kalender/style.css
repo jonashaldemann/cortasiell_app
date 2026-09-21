@@ -480,22 +480,7 @@ button:disabled {
         font-size: 0.9rem;
     }
 
-    /* Wochenansicht: Tage nebeneinander statt übereinander */
-    .wochen-liste {
-        flex-direction: row;
-        gap: 10px;
-    }
-
-    .wochen-zeile {
-        flex: 1;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-    }
-
-    .wochen-datum {
-        flex-direction: row;
-        justify-content: space-between;
-        min-width: 0;
-    }
+    /* Wochenansicht bleibt übereinander gestapelt wie im Smartphone-Modus –
+       nebeneinander kollidierte optisch mit der Auswahl-Leiste, die jetzt
+       rechts daneben sitzt (die Hauptspalte ist dafür zu schmal). */
 }

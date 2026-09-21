@@ -72,6 +72,14 @@
     --braun-hell: color-mix(in srgb, var(--basis-braun) 80%, white);
     --braun-blass: color-mix(in srgb, var(--basis-braun) 15%, white);
 
+    /* Siebte Farbe für Notizen – "Dynamisches Platingrau" aus derselben
+       Farbkarte. */
+    --basis-grau: #939081;
+    --grau: var(--basis-grau);
+    --grau-dunkel: color-mix(in srgb, var(--basis-grau) 85%, black);
+    --grau-hell: color-mix(in srgb, var(--basis-grau) 80%, white);
+    --grau-blass: color-mix(in srgb, var(--basis-grau) 15%, white);
+
     /* Zuordnung Farbe -> Bereich – hier ändern, um die Zuordnung zu
        tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
     --akzent-haupt: var(--navy);
@@ -86,6 +94,8 @@
     --akzent-einkauf-dunkel: var(--gold-dunkel);
     --akzent-menueplan: var(--braun);
     --akzent-menueplan-dunkel: var(--braun-dunkel);
+    --akzent-notizen: var(--grau);
+    --akzent-notizen-dunkel: var(--grau-dunkel);
 
     /* Neutrale Oberflächen mit leichtem Navy-Hauch */
     --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);

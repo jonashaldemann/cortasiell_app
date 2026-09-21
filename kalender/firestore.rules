@@ -48,5 +48,15 @@ service cloud.firestore {
         && request.resource.data.get('zmittag', '') is string
         && request.resource.data.get('znacht', '') is string;
     }
+
+    match /notizen/{notizId} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['text', 'name', 'erstelltAm'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.get('name', '') is string
+        && request.resource.data.get('name', '').size() <= 100;
+    }
   }
 }
