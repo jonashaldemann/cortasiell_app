@@ -99,6 +99,22 @@
                     </div>
                 </div>
 
+                <label>Geplante Zeitspanne (optional)</label>
+                <div class="zwei-spalten">
+                    <div>
+                        <label>Start</label>
+                        <input type="date" id="inputStartDatum">
+                    </div>
+                    <div>
+                        <label>Ende</label>
+                        <input type="date" id="inputEndDatum">
+                    </div>
+                </div>
+                <p class="hinweis-text feld-hinweis">
+                    Wenn beide Daten gesetzt sind, erscheint das Projekt
+                    automatisch als Ereignis im Kalender.
+                </p>
+
                 <label>Abklärungen</label>
                 <div id="checklisteListe" class="checkliste-liste"></div>
                 <button type="button" class="add-button" onclick="window.checklistePunktHinzufuegen()">+ Punkt hinzufügen</button>

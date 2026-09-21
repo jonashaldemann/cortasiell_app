@@ -80,6 +80,15 @@
     --grau-hell: color-mix(in srgb, var(--basis-grau) 80%, white);
     --grau-blass: color-mix(in srgb, var(--basis-grau) 15%, white);
 
+    /* Achte Farbe für Kalender-Ereignisse – "Gedecktes Taubenblau",
+       bewusst deutlich von Kalender-Rot (Personen), Anthrazit (Projekte)
+       und den übrigen Akzenten unterscheidbar. */
+    --basis-taube: #7c8a99;
+    --taube: var(--basis-taube);
+    --taube-dunkel: color-mix(in srgb, var(--basis-taube) 85%, black);
+    --taube-hell: color-mix(in srgb, var(--basis-taube) 80%, white);
+    --taube-blass: color-mix(in srgb, var(--basis-taube) 15%, white);
+
     /* Zuordnung Farbe -> Bereich – hier ändern, um die Zuordnung zu
        tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
     --akzent-haupt: var(--navy);
@@ -96,6 +105,8 @@
     --akzent-menueplan-dunkel: var(--braun-dunkel);
     --akzent-notizen: var(--grau);
     --akzent-notizen-dunkel: var(--grau-dunkel);
+    --akzent-ereignis: var(--taube);
+    --akzent-ereignis-dunkel: var(--taube-dunkel);
 
     /* Neutrale Oberflächen mit leichtem Navy-Hauch */
     --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);

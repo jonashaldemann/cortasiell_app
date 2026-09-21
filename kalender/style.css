@@ -48,6 +48,7 @@ h1 {
 
 .ansicht-zeile {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: stretch;
     margin-bottom: 14px;
@@ -74,6 +75,20 @@ h1 {
 
 .heute-button:hover {
     background: var(--akzent-reserve-dunkel);
+}
+
+.ereignis-button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 8px 14px;
+    min-height: auto;
+    font-size: 0.9rem;
+    background: var(--akzent-ereignis);
+}
+
+.ereignis-button:hover {
+    background: var(--akzent-ereignis-dunkel);
 }
 
 .umschalt-button {
@@ -129,9 +144,15 @@ h1 {
 }
 
 .wochentage-reihe,
-.tage-raster {
+.monat-woche {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.monat-wochen-liste {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
 }
 
@@ -223,6 +244,52 @@ h1 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.ereignis-balken {
+    background: var(--akzent-ereignis);
+    color: white;
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    border-radius: 6px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.ereignis-balken:hover {
+    background: var(--akzent-ereignis-dunkel);
+}
+
+.ereignis-balken.projekt-verknuepft::before {
+    content: "📎 ";
+}
+
+.ereignis-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.ereignis-chip {
+    background: var(--akzent-ereignis);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.ereignis-chip:hover {
+    background: var(--akzent-ereignis-dunkel);
+}
+
+.ereignis-chip.projekt-verknuepft::before {
+    content: "📎 ";
 }
 
 .wochen-liste {
@@ -356,6 +423,38 @@ h1 {
     margin: 12px 0 4px;
 }
 
+.aktivitaet-label input[type="text"],
+.aktivitaet-label input[type="date"] {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+.loeschen-button {
+    background: var(--surface);
+    color: var(--rot-dunkel);
+    border: 1px solid var(--border);
+}
+
+.loeschen-button:hover {
+    background: var(--rot-blass);
+}
+
+.ereignis-projekt-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
 .name-hinzufuegen-reihe {
     display: flex;
     gap: 8px;
@@ -467,7 +566,7 @@ button:disabled {
         margin-top: 0;
     }
 
-    .tage-raster .tag-zelle {
+    .monat-woche .tag-zelle {
         min-height: 74px;
     }
 

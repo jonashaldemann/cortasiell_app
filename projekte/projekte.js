@@ -329,6 +329,8 @@ function neuesProjekt() {
     document.getElementById("inputAnzahlPersonen").value = "";
     document.getElementById("inputDauerTage").value = "";
     document.getElementById("inputKosten").value = "";
+    document.getElementById("inputStartDatum").value = "";
+    document.getElementById("inputEndDatum").value = "";
     document.getElementById("inputDatei").value = "";
 
     renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]?.name);
@@ -358,6 +360,8 @@ function projektBearbeiten(id) {
     document.getElementById("inputAnzahlPersonen").value = projekt.anzahlPersonen ?? "";
     document.getElementById("inputDauerTage").value = projekt.dauerTage ?? "";
     document.getElementById("inputKosten").value = projekt.kosten ?? "";
+    document.getElementById("inputStartDatum").value = projekt.startDatum || "";
+    document.getElementById("inputEndDatum").value = projekt.endDatum || "";
     document.getElementById("inputDatei").value = "";
 
     renderStatusSelect(document.getElementById("inputStatus"), projekt.status);
@@ -439,6 +443,9 @@ async function projektSpeichern() {
         return;
     }
 
+    const startDatum = document.getElementById("inputStartDatum").value;
+    const endDatum = document.getElementById("inputEndDatum").value;
+
     const daten = {
         titel,
         beschreibung: document.getElementById("inputBeschreibung").value.trim(),
@@ -447,7 +454,9 @@ async function projektSpeichern() {
         dauerTage: Number(document.getElementById("inputDauerTage").value) || 0,
         kosten: Number(document.getElementById("inputKosten").value) || 0,
         status: document.getElementById("inputStatus").value,
-        checkliste: checklisteEntwurf.filter(p => p.text.trim() !== "")
+        checkliste: checklisteEntwurf.filter(p => p.text.trim() !== ""),
+        startDatum: startDatum || deleteField(),
+        endDatum: endDatum || deleteField()
     };
 
     if (!bearbeitetesProjektId) {
@@ -478,8 +487,42 @@ async function projektSpeichern() {
     }
 
     await setDoc(doc(db, "projekte", projektId), daten, { merge: true });
+    await ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum);
 
     schliesseEditor();
+
+}
+
+// Spiegelt die optionale Zeitspanne eines Projekts als Ereignis in den
+// Kalender – deterministische ID, damit kein Nachschlagen nötig ist (siehe
+// Plan). Best effort: ein Fehlschlag hier soll das Speichern des Projekts
+// selbst nicht blockieren.
+async function ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum) {
+
+    const ereignisRef = doc(db, "ereignisse", "projekt-" + projektId);
+
+    try {
+
+        if (startDatum && endDatum) {
+
+            await setDoc(ereignisRef, {
+                titel,
+                vonDatum: startDatum,
+                bisDatum: endDatum,
+                projektId
+            });
+
+        } else {
+
+            await deleteDoc(ereignisRef);
+
+        }
+
+    } catch (fehler) {
+
+        console.error("Kalender-Ereignis für Projekt konnte nicht synchronisiert werden:", fehler);
+
+    }
 
 }
 
@@ -496,6 +539,7 @@ async function projektLoeschen(id) {
     }
 
     await deleteDoc(doc(db, "projekte", id));
+    await deleteDoc(doc(db, "ereignisse", "projekt-" + id)).catch(() => {});
 
 }
 

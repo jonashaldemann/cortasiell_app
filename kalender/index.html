@@ -54,7 +54,40 @@
                 einzutragen. Mit Shift+Klick wählst du gleich einen ganzen
                 Zeitraum aus. Unten kannst du Namen hinzufügen/entfernen und
                 eine Aktivität für die ausgewählten Tage eintragen.
+                <br><br>
+                Über "+ Ereignis" legst du ein- oder mehrtägige Ereignisse
+                an, die sich grafisch über mehrere Tage ziehen. Ein Projekt
+                mit Start-/Enddatum taucht automatisch (nur lesend) als
+                Ereignis im Kalender auf.
             </p>
+        </div>
+    </div>
+
+    <div id="ereignisOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2 id="ereignisTitelUeberschrift">Neues Ereignis</h2>
+                <button class="icon-btn" onclick="window.schliesseEreignisOverlay()">✕</button>
+            </div>
+
+            <div id="ereignisProjektHinweis"></div>
+
+            <label class="aktivitaet-label">
+                Titel
+                <input type="text" id="ereignisTitelFeld" placeholder="z.B. Terrassenbau">
+            </label>
+
+            <label class="aktivitaet-label">
+                Von
+                <input type="date" id="ereignisVonFeld">
+            </label>
+
+            <label class="aktivitaet-label">
+                Bis
+                <input type="date" id="ereignisBisFeld">
+            </label>
+
+            <div id="ereignisAktionen"></div>
         </div>
     </div>
 

@@ -16,11 +16,23 @@ service cloud.firestore {
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
           ['titel', 'beschreibung', 'verantwortlich', 'anzahlPersonen', 'dauerTage', 'checkliste',
-           'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm'])
+           'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm',
+           'startDatum', 'endDatum'])
         && request.resource.data.titel is string
         && request.resource.data.titel.size() <= 200
         && request.resource.data.reihenfolge is number
         && request.resource.data.get('checkliste', []) is list;
+    }
+
+    match /ereignisse/{ereignisId} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(
+          ['titel', 'vonDatum', 'bisDatum', 'projektId', 'erstelltAm'])
+        && request.resource.data.titel is string
+        && request.resource.data.titel.size() <= 200
+        && request.resource.data.vonDatum.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.bisDatum.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
     }
 
     match /konfiguration/{docId} {

@@ -3,11 +3,14 @@ import {
     arrayRemove,
     arrayUnion,
     collection,
+    deleteDoc,
     doc,
     documentId,
     onSnapshot,
     orderBy,
     query,
+    serverTimestamp,
+    setDoc,
     startAt,
     endAt,
     writeBatch
@@ -47,10 +50,29 @@ let ausgewaehlteTage = new Set();
 let letzterKlickId = null; // Anker für Shift-Klick-Bereiche
 let letzteAktion = "hinzugefuegt"; // "hinzugefuegt" | "entfernt" – wird bei Shift-Klick auf den ganzen Bereich angewendet
 
+let ereignisse = []; // [{ id, titel, vonDatum, bisDatum, projektId }] – komplette Collection, siehe Plan
+let bearbeitetesEreignisId = null; // null = neues Ereignis wird angelegt
+
 function init() {
 
     abonniereZeitraum();
+    abonniereEreignisse();
     renderAlles();
+
+}
+
+function abonniereEreignisse() {
+
+    onSnapshot(collection(db, "ereignisse"), snapshot => {
+
+        ereignisse = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderKalender();
+
+    }, error => {
+
+        console.error("Ereignisse konnten nicht geladen werden:", error);
+
+    });
 
 }
 
@@ -143,6 +165,10 @@ function feiertageFuerJahr(jahr) {
 
 function feiertagName(datum) {
     return feiertageFuerJahr(datum.getFullYear())[datumZuId(datum)] || null;
+}
+
+function ereignisseFuerTag(id) {
+    return ereignisse.filter(e => e.vonDatum <= id && e.bisDatum >= id);
 }
 
 // HTML-Escaping für alles, was Nutzer als Freitext eingeben (Namen,
@@ -292,6 +318,7 @@ function renderAnsichtUmschalter() {
                 >Woche</button>
             </div>
             <button class="heute-button" onclick="window.heuteAnzeigen()">Heute</button>
+            <button class="ereignis-button" onclick="window.neuesEreignis()">+ Ereignis</button>
         </div>
     `;
 
@@ -304,6 +331,47 @@ function renderKalender() {
     } else {
         renderMonatsansicht();
     }
+
+}
+
+// Ereignisse, die sich mit dieser Woche (Mo–So) überschneiden, jeweils auf
+// die Woche geclippt (Spalte 0=Mo ... 6=So) und einer Lane zugewiesen –
+// Standard-Interval-Scheduling, damit sich überlappende Ereignisse nicht
+// gegenseitig überdecken.
+function ereignisLanesFuerWoche(wochenMontag, wochenSonntag) {
+
+    const vonId = datumZuId(wochenMontag);
+    const bisId = datumZuId(wochenSonntag);
+
+    const segmente = ereignisse
+        .filter(e => e.vonDatum <= bisId && e.bisDatum >= vonId)
+        .map(e => {
+
+            const startCol = Math.max(0, Math.round((idZuDatum(e.vonDatum) - wochenMontag) / 86400000));
+            const endCol = Math.min(6, Math.round((idZuDatum(e.bisDatum) - wochenMontag) / 86400000));
+
+            return { ereignis: e, startCol, endCol };
+
+        })
+        .sort((a, b) => a.startCol - b.startCol || (b.endCol - b.startCol) - (a.endCol - a.startCol));
+
+    const laneEnden = []; // laneEnden[i] = letzte belegte Spalte der Lane i
+    const platzierte = [];
+
+    segmente.forEach(seg => {
+
+        let lane = laneEnden.findIndex(letzteSpalte => letzteSpalte < seg.startCol);
+
+        if (lane === -1) {
+            lane = laneEnden.length;
+        }
+
+        laneEnden[lane] = seg.endCol;
+        platzierte.push({ ...seg, lane });
+
+    });
+
+    return platzierte;
 
 }
 
@@ -322,52 +390,81 @@ function renderMonatsansicht() {
     const anzahlTage = anzahlTageImMonat(jahr, monat);
     const heuteId = datumZuId(heute);
 
-    let zellen = "";
+    const anzahlWochen = Math.ceil((ersterWochentag + anzahlTage) / 7);
+    const ersterMontag = montagDerWoche(new Date(jahr, monat, 1));
 
-    for (let i = 0; i < ersterWochentag; i++) {
-        zellen += `<div class="tag-zelle leer"></div>`;
-    }
+    const limit = chipLimitProZelle();
 
-    for (let tag = 1; tag <= anzahlTage; tag++) {
+    let wochenHtml = "";
 
-        const tagDatumObj = new Date(jahr, monat, tag);
-        const id = datumZuId(tagDatumObj);
-        const eintrag = tageDaten[id];
-        const personen = eintrag?.personen || [];
-        const aktivitaet = eintrag?.aktivitaet || "";
-        const feiertag = feiertagName(tagDatumObj);
+    for (let w = 0; w < anzahlWochen; w++) {
 
-        const limit = chipLimitProZelle();
+        const wochenMontag = tagePlus(ersterMontag, w * 7);
+        const wochenSonntag = tagePlus(wochenMontag, 6);
 
-        const chips = personen
-            .slice(0, limit)
-            .map(name => `<span class="person-chip">${escapeHtml(name)}</span>`)
-            .join("");
+        let tageHtml = "";
 
-        const mehrChip = personen.length > limit
-            ? `<span class="person-chip mehr">+${personen.length - limit}</span>`
-            : "";
+        for (let spalte = 0; spalte < 7; spalte++) {
 
-        const aktivitaetSnippet = aktivitaet
-            ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>`
-            : "";
+            const tagDatumObj = tagePlus(wochenMontag, spalte);
 
-        const feiertagLabel = feiertag
-            ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>`
-            : "";
+            if (tagDatumObj.getMonth() !== monat) {
+                tageHtml += `<div class="tag-zelle leer"></div>`;
+                continue;
+            }
 
-        const heuteKlasse = id === heuteId ? " heute" : "";
-        const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
-        const feiertagKlasse = feiertag ? " feiertag" : "";
+            const id = datumZuId(tagDatumObj);
+            const eintrag = tageDaten[id];
+            const personen = eintrag?.personen || [];
+            const aktivitaet = eintrag?.aktivitaet || "";
+            const feiertag = feiertagName(tagDatumObj);
 
-        zellen += `
-            <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
-                <div class="tag-nummer">${tag}</div>
-                ${feiertagLabel}
-                <div class="person-chips">${chips}${mehrChip}</div>
-                ${aktivitaetSnippet}
-            </div>
-        `;
+            const chips = personen
+                .slice(0, limit)
+                .map(name => `<span class="person-chip">${escapeHtml(name)}</span>`)
+                .join("");
+
+            const mehrChip = personen.length > limit
+                ? `<span class="person-chip mehr">+${personen.length - limit}</span>`
+                : "";
+
+            const aktivitaetSnippet = aktivitaet
+                ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>`
+                : "";
+
+            const feiertagLabel = feiertag
+                ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>`
+                : "";
+
+            const heuteKlasse = id === heuteId ? " heute" : "";
+            const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
+            const feiertagKlasse = feiertag ? " feiertag" : "";
+
+            tageHtml += `
+                <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
+                    <div class="tag-nummer">${tagDatumObj.getDate()}</div>
+                    ${feiertagLabel}
+                    <div class="person-chips">${chips}${mehrChip}</div>
+                    ${aktivitaetSnippet}
+                </div>
+            `;
+
+        }
+
+        const balkenHtml = ereignisLanesFuerWoche(wochenMontag, wochenSonntag).map(seg => {
+
+            const projektKlasse = seg.ereignis.projektId ? " projekt-verknuepft" : "";
+
+            return `
+                <div class="ereignis-balken${projektKlasse}"
+                    style="grid-column:${seg.startCol + 1} / ${seg.endCol + 2}; grid-row:${seg.lane + 2};"
+                    onclick="event.stopPropagation(); window.ereignisOeffnen('${seg.ereignis.id}')"
+                >${escapeHtml(seg.ereignis.titel)}</div>
+            `;
+
+        }).join("");
+
+        wochenHtml += `<div class="monat-woche">${tageHtml}${balkenHtml}</div>`;
 
     }
 
@@ -375,8 +472,8 @@ function renderMonatsansicht() {
         <div class="wochentage-reihe">
             ${WOCHENTAGE.map(w => `<div class="wochentag">${w}</div>`).join("")}
         </div>
-        <div class="tage-raster">
-            ${zellen}
+        <div class="monat-wochen-liste">
+            ${wochenHtml}
         </div>
     `;
 
@@ -412,10 +509,19 @@ function renderWochenansicht() {
         const personen = eintrag?.personen || [];
         const aktivitaet = eintrag?.aktivitaet || "";
         const feiertag = feiertagName(tagDatum);
+        const tagEreignisse = ereignisseFuerTag(id);
 
         const chips = personen.length
             ? personen.map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join("")
             : `<span class="wochen-leer-hinweis">Niemand eingetragen</span>`;
+
+        const ereignisChips = tagEreignisse.length
+            ? `<div class="ereignis-chips">${tagEreignisse.map(e => `
+                    <span class="ereignis-chip${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
+                        ${escapeHtml(e.titel)}
+                    </span>
+                `).join("")}</div>`
+            : "";
 
         const heuteKlasse = id === heuteId ? " heute" : "";
         const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
@@ -430,6 +536,7 @@ function renderWochenansicht() {
                 <div class="wochen-inhalt">
                     ${feiertag ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>` : ""}
                     <div class="person-chips">${chips}</div>
+                    ${ereignisChips}
                     ${aktivitaet ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>` : ""}
                 </div>
             </div>
@@ -687,6 +794,137 @@ async function aktivitaetSpeichern() {
 
 }
 
+// --- Ereignis-Editor ---
+
+function ereignisFormularZuruecksetzen() {
+
+    document.getElementById("ereignisTitelFeld").disabled = false;
+    document.getElementById("ereignisVonFeld").disabled = false;
+    document.getElementById("ereignisBisFeld").disabled = false;
+    document.getElementById("ereignisProjektHinweis").innerHTML = "";
+
+}
+
+function neuesEreignis() {
+
+    bearbeitetesEreignisId = null;
+
+    const heuteId = datumZuId(heute);
+
+    document.getElementById("ereignisTitelUeberschrift").textContent = "Neues Ereignis";
+    ereignisFormularZuruecksetzen();
+
+    document.getElementById("ereignisTitelFeld").value = "";
+    document.getElementById("ereignisVonFeld").value = heuteId;
+    document.getElementById("ereignisBisFeld").value = heuteId;
+
+    document.getElementById("ereignisAktionen").innerHTML = `
+        <button onclick="window.ereignisSpeichern()">Speichern</button>
+        <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
+    `;
+
+    document.getElementById("ereignisOverlay").classList.remove("hidden");
+
+}
+
+function ereignisOeffnen(id) {
+
+    const ereignis = ereignisse.find(e => e.id === id);
+    if (!ereignis) {
+        return;
+    }
+
+    bearbeitetesEreignisId = id;
+    ereignisFormularZuruecksetzen();
+
+    document.getElementById("ereignisTitelFeld").value = ereignis.titel || "";
+    document.getElementById("ereignisVonFeld").value = ereignis.vonDatum;
+    document.getElementById("ereignisBisFeld").value = ereignis.bisDatum;
+
+    if (ereignis.projektId) {
+
+        document.getElementById("ereignisTitelUeberschrift").textContent = "Projekt-Ereignis";
+        document.getElementById("ereignisTitelFeld").disabled = true;
+        document.getElementById("ereignisVonFeld").disabled = true;
+        document.getElementById("ereignisBisFeld").disabled = true;
+
+        document.getElementById("ereignisProjektHinweis").innerHTML = `
+            <p class="hinweis-text">
+                Verknüpft mit einem Projekt – Titel und Zeitraum lassen sich
+                nur dort ändern.
+            </p>
+        `;
+
+        document.getElementById("ereignisAktionen").innerHTML = `
+            <a href="../projekte/" class="abbrechen-button ereignis-projekt-link">Zum Projekt</a>
+            <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Schliessen</button>
+        `;
+
+    } else {
+
+        document.getElementById("ereignisTitelUeberschrift").textContent = "Ereignis bearbeiten";
+
+        document.getElementById("ereignisAktionen").innerHTML = `
+            <button onclick="window.ereignisSpeichern()">Speichern</button>
+            <button type="button" class="loeschen-button" onclick="window.ereignisLoeschen()">Löschen</button>
+            <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
+        `;
+
+    }
+
+    document.getElementById("ereignisOverlay").classList.remove("hidden");
+
+}
+
+function schliesseEreignisOverlay() {
+    document.getElementById("ereignisOverlay").classList.add("hidden");
+}
+
+async function ereignisSpeichern() {
+
+    const titel = document.getElementById("ereignisTitelFeld").value.trim();
+    const von = document.getElementById("ereignisVonFeld").value;
+    let bis = document.getElementById("ereignisBisFeld").value;
+
+    if (!titel || !von) {
+        alert("Bitte Titel und Startdatum angeben.");
+        return;
+    }
+
+    if (!bis || bis < von) {
+        bis = von;
+    }
+
+    const id = bearbeitetesEreignisId || doc(collection(db, "ereignisse")).id;
+
+    const daten = { titel, vonDatum: von, bisDatum: bis, projektId: null };
+
+    if (!bearbeitetesEreignisId) {
+        daten.erstelltAm = serverTimestamp();
+    }
+
+    await setDoc(doc(db, "ereignisse", id), daten, { merge: true });
+
+    schliesseEreignisOverlay();
+
+}
+
+async function ereignisLoeschen() {
+
+    if (!bearbeitetesEreignisId) {
+        return;
+    }
+
+    if (!confirm("Ereignis wirklich löschen?")) {
+        return;
+    }
+
+    await deleteDoc(doc(db, "ereignisse", bearbeitetesEreignisId));
+
+    schliesseEreignisOverlay();
+
+}
+
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
 function hilfeOeffnen() {
@@ -707,6 +945,11 @@ window.auswahlAufheben = auswahlAufheben;
 window.nameHinzufuegen = nameHinzufuegen;
 window.entfernePersonAusAuswahl = entfernePersonAusAuswahl;
 window.aktivitaetSpeichern = aktivitaetSpeichern;
+window.neuesEreignis = neuesEreignis;
+window.ereignisOeffnen = ereignisOeffnen;
+window.schliesseEreignisOverlay = schliesseEreignisOverlay;
+window.ereignisSpeichern = ereignisSpeichern;
+window.ereignisLoeschen = ereignisLoeschen;
 
 init();
 
