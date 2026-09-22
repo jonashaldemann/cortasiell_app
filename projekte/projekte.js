@@ -362,6 +362,8 @@ function neuesProjekt() {
     document.getElementById("inputKosten").value = "";
     document.getElementById("inputStartDatum").value = "";
     document.getElementById("inputEndDatum").value = "";
+    document.getElementById("inputVerschiebeStart").value = "";
+    document.getElementById("inputVerschiebeEnde").value = "";
     document.getElementById("inputDatei").value = "";
 
     renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]?.name);
@@ -393,6 +395,8 @@ function projektBearbeiten(id) {
     document.getElementById("inputKosten").value = projekt.kosten ?? "";
     document.getElementById("inputStartDatum").value = projekt.startDatum || "";
     document.getElementById("inputEndDatum").value = projekt.endDatum || "";
+    document.getElementById("inputVerschiebeStart").value = projekt.verschiebeStart || "";
+    document.getElementById("inputVerschiebeEnde").value = projekt.verschiebeEnde || "";
     document.getElementById("inputDatei").value = "";
 
     renderStatusSelect(document.getElementById("inputStatus"), projekt.status);
@@ -477,6 +481,13 @@ async function projektSpeichern() {
     const startDatum = document.getElementById("inputStartDatum").value;
     const endDatum = document.getElementById("inputEndDatum").value;
 
+    let verschiebeStart = document.getElementById("inputVerschiebeStart").value;
+    let verschiebeEnde = document.getElementById("inputVerschiebeEnde").value;
+
+    if (verschiebeStart && (!verschiebeEnde || verschiebeEnde < verschiebeStart)) {
+        verschiebeEnde = verschiebeStart;
+    }
+
     const daten = {
         geloescht: false,
         titel,
@@ -488,7 +499,9 @@ async function projektSpeichern() {
         status: document.getElementById("inputStatus").value,
         checkliste: checklisteEntwurf.filter(p => p.text.trim() !== ""),
         startDatum: startDatum || deleteField(),
-        endDatum: endDatum || deleteField()
+        endDatum: endDatum || deleteField(),
+        verschiebeStart: verschiebeStart || deleteField(),
+        verschiebeEnde: verschiebeStart ? verschiebeEnde : deleteField()
     };
 
     if (!bearbeitetesProjektId) {
@@ -519,17 +532,17 @@ async function projektSpeichern() {
     }
 
     await setDoc(doc(db, "projekte", projektId), daten, { merge: true });
-    await ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum);
+    await ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum, verschiebeStart, verschiebeEnde);
 
     schliesseEditor();
 
 }
 
-// Spiegelt die optionale Zeitspanne eines Projekts als Ereignis in den
-// Kalender – deterministische ID, damit kein Nachschlagen nötig ist (siehe
-// Plan). Best effort: ein Fehlschlag hier soll das Speichern des Projekts
-// selbst nicht blockieren.
-async function ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum) {
+// Spiegelt die optionale Zeitspanne (und ein optionales Verschiebedatum)
+// eines Projekts als Ereignis in den Kalender – deterministische ID, damit
+// kein Nachschlagen nötig ist (siehe Plan). Best effort: ein Fehlschlag
+// hier soll das Speichern des Projekts selbst nicht blockieren.
+async function ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, endDatum, verschiebeStart, verschiebeEnde) {
 
     const ereignisRef = doc(db, "ereignisse", "projekt-" + projektId);
 
@@ -537,12 +550,14 @@ async function ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, 
 
         if (startDatum && endDatum) {
 
-            await setDoc(ereignisRef, {
-                titel,
-                vonDatum: startDatum,
-                bisDatum: endDatum,
-                projektId
-            });
+            const daten = { titel, vonDatum: startDatum, bisDatum: endDatum, projektId };
+
+            if (verschiebeStart && verschiebeEnde) {
+                daten.verschiebeVon = verschiebeStart;
+                daten.verschiebeBis = verschiebeEnde;
+            }
+
+            await setDoc(ereignisRef, daten);
 
         } else {
 
@@ -585,7 +600,10 @@ async function projektWiederherstellen(id) {
     await setDoc(doc(db, "projekte", id), { geloescht: false }, { merge: true });
 
     if (projekt.startDatum && projekt.endDatum) {
-        await ereignisFuerProjektSynchronisieren(id, projekt.titel, projekt.startDatum, projekt.endDatum);
+        await ereignisFuerProjektSynchronisieren(
+            id, projekt.titel, projekt.startDatum, projekt.endDatum,
+            projekt.verschiebeStart, projekt.verschiebeEnde
+        );
     }
 
 }

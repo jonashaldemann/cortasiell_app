@@ -4,6 +4,7 @@ import {
     arrayUnion,
     collection,
     deleteDoc,
+    deleteField,
     doc,
     documentId,
     onSnapshot,
@@ -171,6 +172,10 @@ function ereignisseFuerTag(id) {
     return ereignisse.filter(e => e.vonDatum <= id && e.bisDatum >= id);
 }
 
+function verschobeneEreignisseFuerTag(id) {
+    return ereignisse.filter(e => e.verschiebeVon && e.verschiebeBis && e.verschiebeVon <= id && e.verschiebeBis >= id);
+}
+
 // HTML-Escaping für alles, was Nutzer als Freitext eingeben (Namen,
 // Aktivitäten) – die Werte kommen ungeprüft von anderen Besuchern.
 // Escaped auch Anführungszeichen, damit die Werte sicher innerhalb von
@@ -334,25 +339,44 @@ function renderKalender() {
 
 }
 
+// Liefert das Wochen-Segment eines Datumsbereichs (z.B. vonDatum/bisDatum
+// oder verschiebeVon/verschiebeBis), auf die Woche geclippt – oder [], wenn
+// der Bereich fehlt oder sich nicht mit der Woche überschneidet.
+function segmentFuerBereichInWoche(ereignis, vonFeld, bisFeld, wochenMontag, wochenSonntag, istVerschoben) {
+
+    const von = ereignis[vonFeld];
+    const bis = ereignis[bisFeld];
+
+    if (!von || !bis) {
+        return [];
+    }
+
+    const wochenVonId = datumZuId(wochenMontag);
+    const wochenBisId = datumZuId(wochenSonntag);
+
+    if (!(von <= wochenBisId && bis >= wochenVonId)) {
+        return [];
+    }
+
+    const startCol = Math.max(0, Math.round((idZuDatum(von) - wochenMontag) / 86400000));
+    const endCol = Math.min(6, Math.round((idZuDatum(bis) - wochenMontag) / 86400000));
+
+    return [{ ereignis, startCol, endCol, istVerschoben }];
+
+}
+
 // Ereignisse, die sich mit dieser Woche (Mo–So) überschneiden, jeweils auf
 // die Woche geclippt (Spalte 0=Mo ... 6=So) und einer Lane zugewiesen –
 // Standard-Interval-Scheduling, damit sich überlappende Ereignisse nicht
-// gegenseitig überdecken.
+// gegenseitig überdecken. Ein optionales Verschiebedatum liefert ein
+// zusätzliches, eigenständiges Segment (hellere Farbe, siehe Rendering).
 function ereignisLanesFuerWoche(wochenMontag, wochenSonntag) {
 
-    const vonId = datumZuId(wochenMontag);
-    const bisId = datumZuId(wochenSonntag);
-
     const segmente = ereignisse
-        .filter(e => e.vonDatum <= bisId && e.bisDatum >= vonId)
-        .map(e => {
-
-            const startCol = Math.max(0, Math.round((idZuDatum(e.vonDatum) - wochenMontag) / 86400000));
-            const endCol = Math.min(6, Math.round((idZuDatum(e.bisDatum) - wochenMontag) / 86400000));
-
-            return { ereignis: e, startCol, endCol };
-
-        })
+        .flatMap(e => [
+            ...segmentFuerBereichInWoche(e, "vonDatum", "bisDatum", wochenMontag, wochenSonntag, false),
+            ...segmentFuerBereichInWoche(e, "verschiebeVon", "verschiebeBis", wochenMontag, wochenSonntag, true)
+        ])
         .sort((a, b) => a.startCol - b.startCol || (b.endCol - b.startCol) - (a.endCol - a.startCol));
 
     const laneEnden = []; // laneEnden[i] = letzte belegte Spalte der Lane i
@@ -454,12 +478,14 @@ function renderMonatsansicht() {
         const balkenHtml = ereignisLanesFuerWoche(wochenMontag, wochenSonntag).map(seg => {
 
             const projektKlasse = seg.ereignis.projektId ? " projekt-verknuepft" : "";
+            const verschobenKlasse = seg.istVerschoben ? " verschoben" : "";
+            const titelPrefix = seg.istVerschoben ? "↦ " : "";
 
             return `
-                <div class="ereignis-balken${projektKlasse}"
+                <div class="ereignis-balken${projektKlasse}${verschobenKlasse}"
                     style="grid-column:${seg.startCol + 1} / ${seg.endCol + 2}; grid-row:${seg.lane + 2};"
                     onclick="event.stopPropagation(); window.ereignisOeffnen('${seg.ereignis.id}')"
-                >${escapeHtml(seg.ereignis.titel)}</div>
+                >${titelPrefix}${escapeHtml(seg.ereignis.titel)}</div>
             `;
 
         }).join("");
@@ -510,17 +536,25 @@ function renderWochenansicht() {
         const aktivitaet = eintrag?.aktivitaet || "";
         const feiertag = feiertagName(tagDatum);
         const tagEreignisse = ereignisseFuerTag(id);
+        const tagVerschobeneEreignisse = verschobeneEreignisseFuerTag(id);
 
         const chips = personen.length
             ? personen.map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join("")
             : `<span class="wochen-leer-hinweis">Niemand eingetragen</span>`;
 
-        const ereignisChips = tagEreignisse.length
-            ? `<div class="ereignis-chips">${tagEreignisse.map(e => `
-                    <span class="ereignis-chip${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
-                        ${escapeHtml(e.titel)}
-                    </span>
-                `).join("")}</div>`
+        const ereignisChips = (tagEreignisse.length || tagVerschobeneEreignisse.length)
+            ? `<div class="ereignis-chips">
+                    ${tagEreignisse.map(e => `
+                        <span class="ereignis-chip${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
+                            ${escapeHtml(e.titel)}
+                        </span>
+                    `).join("")}
+                    ${tagVerschobeneEreignisse.map(e => `
+                        <span class="ereignis-chip verschoben${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
+                            ↦ ${escapeHtml(e.titel)}
+                        </span>
+                    `).join("")}
+                </div>`
             : "";
 
         const heuteKlasse = id === heuteId ? " heute" : "";
@@ -801,6 +835,8 @@ function ereignisFormularZuruecksetzen() {
     document.getElementById("ereignisTitelFeld").disabled = false;
     document.getElementById("ereignisVonFeld").disabled = false;
     document.getElementById("ereignisBisFeld").disabled = false;
+    document.getElementById("ereignisVerschiebeVonFeld").disabled = false;
+    document.getElementById("ereignisVerschiebeBisFeld").disabled = false;
     document.getElementById("ereignisProjektHinweis").innerHTML = "";
 
 }
@@ -817,6 +853,8 @@ function neuesEreignis() {
     document.getElementById("ereignisTitelFeld").value = "";
     document.getElementById("ereignisVonFeld").value = heuteId;
     document.getElementById("ereignisBisFeld").value = heuteId;
+    document.getElementById("ereignisVerschiebeVonFeld").value = "";
+    document.getElementById("ereignisVerschiebeBisFeld").value = "";
 
     document.getElementById("ereignisAktionen").innerHTML = `
         <button onclick="window.ereignisSpeichern()">Speichern</button>
@@ -840,6 +878,8 @@ function ereignisOeffnen(id) {
     document.getElementById("ereignisTitelFeld").value = ereignis.titel || "";
     document.getElementById("ereignisVonFeld").value = ereignis.vonDatum;
     document.getElementById("ereignisBisFeld").value = ereignis.bisDatum;
+    document.getElementById("ereignisVerschiebeVonFeld").value = ereignis.verschiebeVon || "";
+    document.getElementById("ereignisVerschiebeBisFeld").value = ereignis.verschiebeBis || "";
 
     if (ereignis.projektId) {
 
@@ -847,6 +887,8 @@ function ereignisOeffnen(id) {
         document.getElementById("ereignisTitelFeld").disabled = true;
         document.getElementById("ereignisVonFeld").disabled = true;
         document.getElementById("ereignisBisFeld").disabled = true;
+        document.getElementById("ereignisVerschiebeVonFeld").disabled = true;
+        document.getElementById("ereignisVerschiebeBisFeld").disabled = true;
 
         document.getElementById("ereignisProjektHinweis").innerHTML = `
             <p class="hinweis-text">
@@ -895,9 +937,23 @@ async function ereignisSpeichern() {
         bis = von;
     }
 
+    let verschiebeVon = document.getElementById("ereignisVerschiebeVonFeld").value;
+    let verschiebeBis = document.getElementById("ereignisVerschiebeBisFeld").value;
+
+    if (verschiebeVon && (!verschiebeBis || verschiebeBis < verschiebeVon)) {
+        verschiebeBis = verschiebeVon;
+    }
+
     const id = bearbeitetesEreignisId || doc(collection(db, "ereignisse")).id;
 
-    const daten = { titel, vonDatum: von, bisDatum: bis, projektId: null };
+    const daten = {
+        titel,
+        vonDatum: von,
+        bisDatum: bis,
+        projektId: null,
+        verschiebeVon: verschiebeVon || deleteField(),
+        verschiebeBis: verschiebeVon ? verschiebeBis : deleteField()
+    };
 
     if (!bearbeitetesEreignisId) {
         daten.erstelltAm = serverTimestamp();

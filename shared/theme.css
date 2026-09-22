@@ -109,6 +109,7 @@
     --akzent-notizen-dunkel: var(--grau-dunkel);
     --akzent-ereignis: var(--taube);
     --akzent-ereignis-dunkel: var(--taube-dunkel);
+    --akzent-ereignis-hell: var(--taube-hell);
 
     /* Neutrale Oberflächen mit leichtem Navy-Hauch */
     --bg: color-mix(in srgb, var(--basis-navy) 5%, #f3f1ee);

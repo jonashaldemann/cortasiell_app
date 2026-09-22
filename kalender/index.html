@@ -59,6 +59,10 @@
                 an, die sich grafisch über mehrere Tage ziehen. Ein Projekt
                 mit Start-/Enddatum taucht automatisch (nur lesend) als
                 Ereignis im Kalender auf.
+                <br><br>
+                Ist ein Termin evtl. verschoben, trag zusätzlich ein
+                Verschiebedatum ein: Es erscheint als zweiter Balken in
+                hellerer Farbe, neben dem ursprünglichen Termin.
             </p>
         </div>
     </div>
@@ -85,6 +89,16 @@
             <label class="aktivitaet-label">
                 Bis
                 <input type="date" id="ereignisBisFeld">
+            </label>
+
+            <label class="aktivitaet-label">
+                Verschiebedatum von (optional)
+                <input type="date" id="ereignisVerschiebeVonFeld">
+            </label>
+
+            <label class="aktivitaet-label">
+                Verschiebedatum bis (optional)
+                <input type="date" id="ereignisVerschiebeBisFeld">
             </label>
 
             <div id="ereignisAktionen"></div>

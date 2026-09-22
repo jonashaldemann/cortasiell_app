@@ -267,6 +267,16 @@ h1 {
     content: "📎 ";
 }
 
+.ereignis-balken.verschoben {
+    background: var(--akzent-ereignis-hell);
+    color: var(--text);
+}
+
+.ereignis-balken.verschoben:hover {
+    background: var(--akzent-ereignis);
+    color: #fff;
+}
+
 .ereignis-chips {
     display: flex;
     flex-wrap: wrap;
@@ -290,6 +300,11 @@ h1 {
 
 .ereignis-chip.projekt-verknuepft::before {
     content: "📎 ";
+}
+
+.ereignis-chip.verschoben {
+    background: var(--akzent-ereignis-hell);
+    color: var(--text);
 }
 
 .wochen-liste {
