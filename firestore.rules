@@ -45,10 +45,12 @@ service cloud.firestore {
       allow read: if true;
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
-          ['text', 'erledigt', 'reihenfolge', 'angepinnterName'])
+          ['text', 'erledigt', 'reihenfolge', 'angepinnterName', 'link'])
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 200
-        && request.resource.data.reihenfolge is number;
+        && request.resource.data.reihenfolge is number
+        && request.resource.data.get('link', '') is string
+        && request.resource.data.get('link', '').size() <= 500;
     }
 
     match /menuplan/{tagId} {

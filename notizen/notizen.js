@@ -129,7 +129,13 @@ async function notizTextSpeichern(id) {
 }
 
 async function notizLoeschen(id) {
+
+    if (!confirm("Notiz wirklich löschen?")) {
+        return;
+    }
+
     await deleteDoc(doc(db, "notizen", id));
+
 }
 
 function hilfeOeffnen() {

@@ -20,7 +20,6 @@ body {
 .kopfzeile {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
 }
@@ -30,6 +29,7 @@ h1 {
     font-size: 1.3rem;
     color: var(--text);
     margin: 0;
+    flex: 1;
 }
 
 .hinweis-text {
@@ -71,6 +71,7 @@ h1 {
 
 .einkaufs-zeile {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     background: var(--surface-2);
@@ -112,8 +113,39 @@ h1 {
     word-break: break-word;
 }
 
-.zeile-pin {
+.zeile-link {
     flex: none;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 0 4px;
+}
+
+.zeile-bearbeiten-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.link-bearbeiten-feld {
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+/* Pin rutscht standardmässig auf eine eigene Zeile unter den Text (statt
+   rechts daneben) – so bleibt bei längeren Einträgen die volle Breite für
+   den Text. Der Griff+Checkbox-Einzug (16+10+20+10) wird nachgebildet,
+   damit der Pin optisch unter dem Text statt unter dem Griff beginnt. */
+.zeile-pin {
+    flex: 0 0 100%;
+    margin-left: 56px;
     display: flex;
     align-items: center;
     gap: 6px;

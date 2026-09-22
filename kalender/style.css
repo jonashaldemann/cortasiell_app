@@ -34,7 +34,6 @@ body {
 .kopfzeile {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     margin-bottom: 16px;
 }
@@ -44,6 +43,7 @@ h1 {
     font-size: 1.3rem;
     color: var(--text);
     margin: 0;
+    flex: 1;
 }
 
 .ansicht-zeile {

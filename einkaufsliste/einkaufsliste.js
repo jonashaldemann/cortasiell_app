@@ -98,18 +98,31 @@ function renderZeileText(eintrag) {
     if (bearbeitetesTextId === eintrag.id) {
 
         return `
-            <input
-                type="text"
-                class="text-bearbeiten-feld"
-                value="${escapeHtml(eintrag.text)}"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();window.elementTextSpeichern('${eintrag.id}');}"
-            >
+            <div class="zeile-bearbeiten-block">
+                <input
+                    type="text"
+                    class="text-bearbeiten-feld"
+                    value="${escapeHtml(eintrag.text)}"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();window.elementTextSpeichern('${eintrag.id}');}"
+                >
+                <input
+                    type="url"
+                    class="link-bearbeiten-feld"
+                    placeholder="Link (optional)"
+                    value="${escapeHtml(eintrag.link || "")}"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();window.elementTextSpeichern('${eintrag.id}');}"
+                >
+            </div>
             <button class="row-action" onclick="window.elementTextSpeichern('${eintrag.id}')" title="Speichern">✓</button>
         `;
 
     }
 
-    return `<span class="zeile-text" onclick="window.elementBearbeitenOeffnen('${eintrag.id}')">${escapeHtml(eintrag.text)}</span>`;
+    const linkIcon = eintrag.link
+        ? `<a class="zeile-link" href="${escapeHtml(eintrag.link)}" target="_blank" rel="noopener" title="Link öffnen" onclick="event.stopPropagation()">🔗</a>`
+        : "";
+
+    return `<span class="zeile-text" onclick="window.elementBearbeitenOeffnen('${eintrag.id}')">${escapeHtml(eintrag.text)}</span>${linkIcon}`;
 
 }
 
@@ -165,8 +178,8 @@ function renderAktiveListe(aktive) {
             <div class="zeile-griff" title="Zum Verschieben ziehen">⠿</div>
             <input type="checkbox" onchange="window.erledigtGeaendert('${e.id}', this.checked)">
             ${renderZeileText(e)}
-            <div class="zeile-pin">${renderPinBereich(e)}</div>
             <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
+            <div class="zeile-pin">${renderPinBereich(e)}</div>
         </div>
     `).join("");
 
@@ -192,8 +205,8 @@ function renderErledigtBereich(erledigte) {
                     <div class="zeile-griff-platzhalter"></div>
                     <input type="checkbox" checked onchange="window.erledigtGeaendert('${e.id}', this.checked)">
                     ${renderZeileText(e)}
-                    <div class="zeile-pin">${e.angepinnterName ? `<span class="pin-chip">📌 ${escapeHtml(e.angepinnterName)}</span>` : ""}</div>
                     <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
+                    <div class="zeile-pin">${e.angepinnterName ? `<span class="pin-chip">📌 ${escapeHtml(e.angepinnterName)}</span>` : ""}</div>
                 </div>
             `).join("")}
         </div>
@@ -258,11 +271,14 @@ function elementBearbeitenOeffnen(id) {
 
 async function elementTextSpeichern(id) {
 
-    const feld = document.querySelector(".text-bearbeiten-feld");
-    const text = feld ? feld.value.trim() : "";
+    const textFeld = document.querySelector(".text-bearbeiten-feld");
+    const linkFeld = document.querySelector(".link-bearbeiten-feld");
+
+    const text = textFeld ? textFeld.value.trim() : "";
+    const link = linkFeld ? linkFeld.value.trim() : "";
 
     if (text) {
-        await setDoc(doc(db, "einkaufsliste", id), { text }, { merge: true });
+        await setDoc(doc(db, "einkaufsliste", id), { text, link: link || deleteField() }, { merge: true });
     }
 
     bearbeitetesTextId = null;
