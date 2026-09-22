@@ -48,28 +48,47 @@ function init() {
 function render() {
 
     const box = document.getElementById("notizenListe");
+    const papierkorbBox = document.getElementById("notizenPapierkorb");
 
-    if (notizen.length === 0) {
-        box.innerHTML = `<p class="hinweis-text">Noch keine Notizen vorhanden.</p>`;
-        return;
-    }
+    const aktive = notizen.filter(n => !n.geloescht);
+    const papierkorb = notizen.filter(n => n.geloescht);
 
-    box.innerHTML = notizen.map(n => renderNotiz(n)).join("");
+    box.innerHTML = aktive.length === 0
+        ? `<p class="hinweis-text">Noch keine Notizen vorhanden.</p>`
+        : aktive.map(n => renderNotiz(n)).join("");
+
+    papierkorbBox.innerHTML = papierkorb.length === 0
+        ? ""
+        : `
+            <h2 class="papierkorb-kopf">Papierkorb</h2>
+            <div class="notizen-liste">
+                ${papierkorb.map(n => renderNotiz(n)).join("")}
+            </div>
+        `;
 
 }
 
 function renderNotiz(n) {
 
-    const inhalt = bearbeitetesId === n.id
+    const istPapierkorb = !!n.geloescht;
+
+    const inhalt = (!istPapierkorb && bearbeitetesId === n.id)
         ? `
             <textarea class="notiz-bearbeiten-feld" rows="4">${escapeHtml(n.text)}</textarea>
             <button class="notiz-speichern-button" onclick="window.notizTextSpeichern('${n.id}')">Speichern</button>
         `
-        : `<p class="notiz-text" onclick="window.notizBearbeitenOeffnen('${n.id}')">${escapeHtml(n.text)}</p>`;
+        : `<p class="notiz-text" ${istPapierkorb ? "" : `onclick="window.notizBearbeitenOeffnen('${n.id}')"`}>${escapeHtml(n.text)}</p>`;
+
+    const aktionen = istPapierkorb
+        ? `
+            <button class="row-action" onclick="window.notizWiederherstellen('${n.id}')" title="Wiederherstellen">↺</button>
+            <button class="row-action" onclick="window.notizEndgueltigLoeschen('${n.id}')" title="Endgültig löschen">🗑</button>
+        `
+        : `<button class="row-action" onclick="window.notizLoeschen('${n.id}')" title="Löschen">✕</button>`;
 
     return `
-        <div class="notiz-kachel">
-            <button class="row-action notiz-loeschen" onclick="window.notizLoeschen('${n.id}')" title="Löschen">✕</button>
+        <div class="notiz-kachel${istPapierkorb ? " papierkorb" : ""}">
+            <div class="notiz-kachel-aktionen">${aktionen}</div>
             ${inhalt}
             ${n.name ? `<div class="notiz-autor">– ${escapeHtml(n.name)}</div>` : ""}
         </div>
@@ -134,6 +153,20 @@ async function notizLoeschen(id) {
         return;
     }
 
+    await setDoc(doc(db, "notizen", id), { geloescht: true }, { merge: true });
+
+}
+
+async function notizWiederherstellen(id) {
+    await setDoc(doc(db, "notizen", id), { geloescht: false }, { merge: true });
+}
+
+async function notizEndgueltigLoeschen(id) {
+
+    if (!confirm("Notiz endgültig löschen? Das kann nicht rückgängig gemacht werden.")) {
+        return;
+    }
+
     await deleteDoc(doc(db, "notizen", id));
 
 }
@@ -151,6 +184,8 @@ window.notizHinzufuegen = notizHinzufuegen;
 window.notizBearbeitenOeffnen = notizBearbeitenOeffnen;
 window.notizTextSpeichern = notizTextSpeichern;
 window.notizLoeschen = notizLoeschen;
+window.notizWiederherstellen = notizWiederherstellen;
+window.notizEndgueltigLoeschen = notizEndgueltigLoeschen;
 window.hilfeOeffnen = hilfeOeffnen;
 window.hilfeSchliessen = hilfeSchliessen;
 

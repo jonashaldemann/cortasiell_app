@@ -36,6 +36,10 @@
                 öffnen. Am Griff ⠿ links kannst du ein Projekt an eine
                 andere Stelle ziehen. Über das ⚙-Symbol oben kannst du die
                 Status-Liste samt Farben selbst anpassen.
+                <br><br>
+                Gelöschte Projekte landen zunächst ausgegraut im Papierkorb
+                unten – von dort kannst du sie wiederherstellen (↺) oder
+                endgültig löschen (🗑).
             </p>
         </div>
     </div>
@@ -60,6 +64,8 @@
     <div id="projekteListe" class="projekte-liste" ondragover="window.dragOverListe(event)" ondrop="window.dragDrop(event)">
         <p class="hinweis-text">Lädt…</p>
     </div>
+
+    <div id="projektePapierkorb"></div>
 
     <!-- Editor -->
     <div id="editorOverlay" class="overlay hidden">

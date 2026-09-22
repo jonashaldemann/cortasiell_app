@@ -93,6 +93,8 @@
        tauschen (z.B. wenn eine neue App eine der Farben übernehmen soll) */
     --akzent-haupt: var(--navy);
     --akzent-haupt-dunkel: var(--navy-dunkel);
+    --akzent-adressen: var(--navy);
+    --akzent-adressen-dunkel: var(--navy-dunkel);
     --akzent-inventar: var(--oliv);
     --akzent-inventar-dunkel: var(--oliv-dunkel);
     --akzent-kalender: var(--rot);

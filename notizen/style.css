@@ -114,10 +114,15 @@ h1 {
     text-align: right;
 }
 
-.notiz-loeschen {
+.notiz-kachel-aktionen {
     position: absolute;
     top: 8px;
     right: 8px;
+    display: flex;
+    gap: 2px;
+}
+
+.notiz-kachel-aktionen button {
     width: auto;
     background: none;
     border: none;
@@ -128,9 +133,27 @@ h1 {
     font-size: 0.9rem;
 }
 
-.notiz-loeschen:hover {
+.notiz-kachel-aktionen button:hover {
     color: var(--akzent-notizen-dunkel);
     background: none;
+}
+
+.notiz-kachel.papierkorb {
+    opacity: 0.55;
+}
+
+.notiz-kachel.papierkorb .notiz-text {
+    cursor: default;
+}
+
+.papierkorb-kopf {
+    max-width: min(1100px, 96vw);
+    margin: 24px auto 10px;
+    font-family: var(--font-medium);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .notiz-bearbeiten-feld {

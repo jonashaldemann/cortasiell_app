@@ -182,13 +182,44 @@ function farbeFuerStatus(status) {
 function renderListe() {
 
     const box = document.getElementById("projekteListe");
+    const papierkorbBox = document.getElementById("projektePapierkorb");
 
-    if (projekte.length === 0) {
-        box.innerHTML = `<p class="hinweis-text">Noch keine Projekte vorhanden.</p>`;
-        return;
+    const aktive = projekte.filter(p => !p.geloescht);
+    const papierkorb = projekte.filter(p => p.geloescht);
+
+    box.innerHTML = aktive.length === 0
+        ? `<p class="hinweis-text">Noch keine Projekte vorhanden.</p>`
+        : aktive.map(p => renderProjektKarte(p)).join("");
+
+    papierkorbBox.innerHTML = papierkorb.length === 0
+        ? ""
+        : `
+            <h2 class="papierkorb-kopf">Papierkorb</h2>
+            <div class="projekte-liste">
+                ${papierkorb.map(p => renderProjektKarte(p, true)).join("")}
+            </div>
+        `;
+
+}
+
+function renderProjektKarte(p, istPapierkorb) {
+
+    if (istPapierkorb) {
+
+        return `
+            <div class="projekt-karte papierkorb" style="background:${farbeFuerStatus(p.status)}">
+                <h3 class="karte-titel">${escapeHtml(p.titel)}</h3>
+                <p class="karte-beschreibung">${escapeHtml(p.beschreibung)}</p>
+                <div class="karte-papierkorb-aktionen">
+                    <button class="row-action" onclick="window.projektWiederherstellen('${p.id}')" title="Wiederherstellen">↺</button>
+                    <button class="row-action" onclick="window.projektEndgueltigLoeschen('${p.id}')" title="Endgültig löschen">🗑</button>
+                </div>
+            </div>
+        `;
+
     }
 
-    box.innerHTML = projekte.map((p, index) => `
+    return `
         <div class="projekt-karte"
             style="background:${farbeFuerStatus(p.status)}"
             draggable="true"
@@ -214,7 +245,7 @@ function renderListe() {
             </select>
             <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
         </div>
-    `).join("");
+    `;
 
 }
 
@@ -447,6 +478,7 @@ async function projektSpeichern() {
     const endDatum = document.getElementById("inputEndDatum").value;
 
     const daten = {
+        geloescht: false,
         titel,
         beschreibung: document.getElementById("inputBeschreibung").value.trim(),
         verantwortlich: document.getElementById("inputVerantwortlich").value.trim(),
@@ -531,6 +563,38 @@ async function projektLoeschen(id) {
     const projekt = projekte.find(p => p.id === id);
 
     if (!confirm(`Projekt "${projekt?.titel || ""}" wirklich löschen?`)) {
+        return;
+    }
+
+    // Soft delete: die Datei bleibt vorerst erhalten (erst bei endgültigem
+    // Löschen aus dem Papierkorb entfernt), das Kalender-Ereignis
+    // verschwindet aber sofort, damit ein "gelöschtes" Projekt nicht mehr
+    // im Kalender auftaucht.
+    await setDoc(doc(db, "projekte", id), { geloescht: true }, { merge: true });
+    await deleteDoc(doc(db, "ereignisse", "projekt-" + id)).catch(() => {});
+
+}
+
+async function projektWiederherstellen(id) {
+
+    const projekt = projekte.find(p => p.id === id);
+    if (!projekt) {
+        return;
+    }
+
+    await setDoc(doc(db, "projekte", id), { geloescht: false }, { merge: true });
+
+    if (projekt.startDatum && projekt.endDatum) {
+        await ereignisFuerProjektSynchronisieren(id, projekt.titel, projekt.startDatum, projekt.endDatum);
+    }
+
+}
+
+async function projektEndgueltigLoeschen(id) {
+
+    const projekt = projekte.find(p => p.id === id);
+
+    if (!confirm(`Projekt "${projekt?.titel || ""}" endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) {
         return;
     }
 
@@ -719,6 +783,8 @@ window.checklistePunktEntfernen = checklistePunktEntfernen;
 window.dateiEntfernenKlick = dateiEntfernenKlick;
 window.projektSpeichern = projektSpeichern;
 window.projektLoeschen = projektLoeschen;
+window.projektWiederherstellen = projektWiederherstellen;
+window.projektEndgueltigLoeschen = projektEndgueltigLoeschen;
 function hilfeOeffnen() {
     document.getElementById("hilfeOverlay").classList.remove("hidden");
 }

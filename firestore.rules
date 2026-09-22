@@ -17,7 +17,7 @@ service cloud.firestore {
       allow create, update: if request.resource.data.keys().hasOnly(
           ['titel', 'beschreibung', 'verantwortlich', 'anzahlPersonen', 'dauerTage', 'checkliste',
            'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm',
-           'startDatum', 'endDatum'])
+           'startDatum', 'endDatum', 'geloescht'])
         && request.resource.data.titel is string
         && request.resource.data.titel.size() <= 200
         && request.resource.data.reihenfolge is number
@@ -63,10 +63,19 @@ service cloud.firestore {
         && request.resource.data.get('znacht', '') is string;
     }
 
+    match /adressen/{adressId} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(
+          ['bezeichnung', 'name', 'vorname', 'ort', 'tel', 'mail', 'webseite', 'erstelltAm'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 200;
+    }
+
     match /notizen/{notizId} {
       allow read: if true;
       allow delete: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(['text', 'name', 'erstelltAm'])
+      allow create, update: if request.resource.data.keys().hasOnly(['text', 'name', 'erstelltAm', 'geloescht'])
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000
         && request.resource.data.get('name', '') is string
