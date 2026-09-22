@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-inventar-v3";
+const CACHE_NAME = "cortasiell-inventar-v4";
 
 const FILES_TO_CACHE = [
     "./",
@@ -17,26 +17,19 @@ const FILES_TO_CACHE = [
     "../shared/fonts/nudica-regular-webfont.woff"
 ];
 
+// WICHTIG: Inventar ist die einzige App, die regelmässig vor Ort mit
+// schlechtem/keinem Netz benutzt wird (Alphütte). Deshalb bewusst
+// Cache-zuerst statt Netzwerk-zuerst wie bei den übrigen Apps – die
+// Shell muss sofort und garantiert offline laden, ohne je auf einen
+// Netzwerk-Timeout zu warten. Die eigentliche Offline-Robustheit
+// (Fragen-Cache, Zustand, Sync-Warteschlange) steckt ohnehin in
+// app.js/localStorage, nicht im Service Worker.
 self.addEventListener("install", event => {
-
-    self.skipWaiting(); // neue Version sofort aktivieren, nicht erst wenn alle Tabs zu sind
 
     event.waitUntil(
 
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(FILES_TO_CACHE))
-
-    );
-
-});
-
-self.addEventListener("activate", event => {
-
-    event.waitUntil(
-
-        caches.keys()
-            .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
-            .then(() => self.clients.claim()) // offene Tabs sofort übernehmen
 
     );
 
@@ -50,21 +43,14 @@ self.addEventListener("fetch", event => {
         return;
     }
 
-    // Netzwerk zuerst, damit ein frischer Deploy sofort ankommt – nur bei
-    // Offline/Netzwerkfehler auf den zuletzt bekannten Stand aus dem Cache
-    // zurückgreifen. Löst das "Refresh zeigt trotzdem die alte Version"-
-    // Problem der vorherigen Cache-zuerst-Strategie.
     event.respondWith(
 
-        fetch(event.request)
-            .then(antwort => {
+        caches.match(event.request)
+            .then(response => {
 
-                const kopie = antwort.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(event.request, kopie));
-                return antwort;
+                return response || fetch(event.request);
 
             })
-            .catch(() => caches.match(event.request))
 
     );
 
