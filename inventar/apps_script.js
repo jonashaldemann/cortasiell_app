@@ -134,6 +134,30 @@ function istVorhanden(erfassungstyp, info) {
 
 }
 
+// Google-Modelle antworten gelegentlich mit 503 ("high demand", meist
+// kurz nach Release eines neuen Modells) oder 429 (Rate-Limit) - beides
+// typischerweise vorübergehend. Statt sofort aufzugeben, bis zu 3x mit
+// steigender Wartezeit erneut versuchen, bevor der letzte (dann auch
+// fehlerhafte) Versuch zurückgegeben wird.
+function rufeGeminiMitRetry(url, options, maxVersuche) {
+
+  maxVersuche = maxVersuche || 3;
+
+  for (let versuch = 1; versuch <= maxVersuche; versuch++) {
+
+    const antwort = UrlFetchApp.fetch(url, options);
+    const status = antwort.getResponseCode();
+
+    if ((status !== 503 && status !== 429) || versuch === maxVersuche) {
+      return antwort;
+    }
+
+    Utilities.sleep(2000 * versuch); // 2s, 4s, ...
+
+  }
+
+}
+
 // Liest den aktuellen Vorrat aus dem Sheet, schickt ihn an die
 // Anthropic-API und lässt 3 Rezeptvorschläge erstellen, die möglichst
 // viel davon nutzen. Erwartet einen API-Key in den Script-Properties
@@ -190,22 +214,21 @@ function holeMenuvorschlaege() {
   // September 2026, Google-Fehlermeldung empfiehlt "gemini-3.8-flash").
   const modell = "gemini-3.8-flash";
 
-  const antwort =
-    UrlFetchApp.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + modell + ":generateContent",
-      {
-        method: "post",
-        contentType: "application/json",
-        headers: {
-          "x-goog-api-key": apiKey
-        },
-        payload: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        }),
-        muteHttpExceptions: true
-      }
-    );
+  const antwort = rufeGeminiMitRetry(
+    "https://generativelanguage.googleapis.com/v1beta/models/" + modell + ":generateContent",
+    {
+      method: "post",
+      contentType: "application/json",
+      headers: {
+        "x-goog-api-key": apiKey
+      },
+      payload: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      }),
+      muteHttpExceptions: true
+    }
+  );
 
   const status = antwort.getResponseCode();
   const body = JSON.parse(antwort.getContentText());
