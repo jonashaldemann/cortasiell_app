@@ -552,8 +552,14 @@ function monatsStarts() {
 
 function rechteckStil(startIdx, endIdx, lane = 0) {
 
-    const start = startIdx * zellGroesse;
-    const laenge = (endIdx - startIdx + 1) * zellGroesse;
+    // RAND lässt an beiden Enden eine kleine Lücke zur Tages-Gitterlinie -
+    // ohne die stösst ein korrekt bis Sonntag gehender Balken optisch exakt
+    // an die Montags-Linie und sieht so aus, als würde er in den Montag
+    // hineinreichen (siehe Feedback). Reine Optik, ändert nichts an den
+    // gespeicherten Tagen.
+    const RAND = Math.min(2, zellGroesse * 0.15);
+    const start = startIdx * zellGroesse + RAND;
+    const laenge = (endIdx - startIdx + 1) * zellGroesse - RAND * 2;
     const quer = 6 + lane * LANE_PITCH; // Versatz quer zur Datumsachse (gestapelte Lanes)
 
     return istHorizontal()
@@ -1064,8 +1070,13 @@ function balkenZiehenStarten(e, balkenEl) {
     const griffEl = e.target.closest("[data-griff]");
     const modus = griffEl ? griffEl.dataset.griff : "verschieben"; // "start" | "ende" | "verschieben"
 
-    const startIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.vonId));
-    const endIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.bisId));
+    // Notiz-Marker haben nur data-id (ein einzelner Tag), keine
+    // data-von-id/data-bis-id wie Personen-/Ereignis-Balken - sonst würde
+    // idZuTagIndex(undefined) hier crashen und der Klick bliebe wortlos
+    // wirkungslos (siehe Feedback "Notizen: klicke ich drauf, passiert
+    // nichts").
+    const startIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.typ === "notiz" ? balkenEl.dataset.id : balkenEl.dataset.vonId));
+    const endIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.typ === "notiz" ? balkenEl.dataset.id : balkenEl.dataset.bisId));
     const lane = Number(balkenEl.dataset.lane) || 0;
     let vorschauStart = startIdx0;
     let vorschauEnd = endIdx0;
