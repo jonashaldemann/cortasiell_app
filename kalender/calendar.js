@@ -62,13 +62,16 @@ const LABEL_GROESSE = 130;
 const SPALTEN_BREITE = 84;
 const DATUM_SPALTE_BREITE = 56;
 const LANE_PITCH = 28; // px zwischen zwei gestapelten Balken (Höhe horizontal / Breite vertikal)
+const NOTIZ_MARKER_BREITE = 20; // px, Diamant + Lücke vor dem Text
+const NOTIZ_ZEICHEN_BREITE = 6; // px, grobe Breite pro Zeichen des Notiz-Labels
 
 let ereignisse = [];
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
 
 let letzteOrientierung = null;
 let bearbeitetesEreignisId = null;
-let bearbeiteterPersonBalken = null; // { alterName, alteTage: string[] }
+let ereignisDialogZustand = { vonId: null, bisId: null }; // Zeitraum des offenen Ereignis-Dialogs (aus Ziehen, nicht editierbar)
+let personDialogZustand = null; // { alterName, alteTage: string[], vonId, bisId }
 let bearbeitetesNotizDatum = null;
 let ereignisVerschiebeZeichnenId = null;
 
@@ -157,6 +160,19 @@ function formatDatumLang(id) {
     ];
     const [jahr, monat, tag] = id.split("-").map(Number);
     return `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
+}
+
+function formatDatumKurz(id) {
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return `${tag}. ${MONATSNAMEN_KURZ[monat - 1]}`;
+}
+
+// Für Anzeige-Texte in den Dialogen – die Datums-Eingabefelder wurden
+// bewusst entfernt (siehe README/Feedback): Balken werden nur noch per
+// Ziehen auf der Zeitleiste gesetzt, hier wird der aktuelle Zeitraum nur
+// noch schreibgeschützt zur Kontrolle angezeigt.
+function formatZeitraum(vonId, bisId) {
+    return vonId === bisId ? formatDatumLang(vonId) : `${formatDatumKurz(vonId)} – ${formatDatumLang(bisId)}`;
 }
 
 function kuerzeText(text, maxLen) {
@@ -427,6 +443,28 @@ function tagesnotizenListe() {
 
 }
 
+// Grobe Schätzung, wie viele Tage breit das Label einer Notiz bei der
+// aktuellen Zellgrösse ungefähr einnimmt – daraus wird ein "Intervall" für
+// packLanes() abgeleitet, damit sich Notizen nur stapeln, wenn sich ihre
+// Texte tatsächlich überlagern würden (und ein späterer Eintrag wieder in
+// eine frei gewordene Lane rutscht, sobald der Text davor "fertig" ist).
+function notizFussabdruckTage(text) {
+    const px = NOTIZ_MARKER_BREITE + kuerzeText(text, 24).length * NOTIZ_ZEICHEN_BREITE;
+    return Math.max(1, Math.ceil(px / zellGroesse));
+}
+
+function tagesnotizenBalkenListe() {
+
+    const intervalle = tagesnotizenListe().map(e => ({
+        ...e,
+        startIdx: e.idx,
+        endIdx: clampIdx(e.idx + notizFussabdruckTage(e.text) - 1)
+    }));
+
+    return packLanes(intervalle);
+
+}
+
 function feiertageImBereich() {
 
     const liste = [];
@@ -524,10 +562,31 @@ function rechteckStil(startIdx, endIdx, lane = 0) {
 
 }
 
-function punktStil(idx) {
+function punktStil(idx, lane = 0) {
 
     const start = idx * zellGroesse;
-    return istHorizontal() ? `left:${start}px;` : `top:${start}px;`;
+    const quer = 6 + lane * LANE_PITCH;
+
+    return istHorizontal()
+        ? `left:${start}px; top:${quer}px;`
+        : `top:${start}px; left:${quer}px;`;
+
+}
+
+// Dünne Trennlinie pro Tag (nicht nur pro Woche) – damit einzelne Tage auch
+// bei grösseren Zellen klar auseinandergehalten werden können, unabhängig
+// vom Zoom.
+function tagesGitterHtml() {
+
+    let html = "";
+
+    for (let i = 1; i < totalTage; i++) {
+        html += istHorizontal()
+            ? `<div class="zl-tag-gitterlinie" style="left:${i * zellGroesse}px;"></div>`
+            : `<div class="zl-tag-gitterlinie-v" style="top:${i * zellGroesse}px;"></div>`;
+    }
+
+    return html;
 
 }
 
@@ -540,7 +599,7 @@ function personBalkenHtml(item) {
 
     return `
         <div class="zl-balken zl-balken-person" data-balken data-typ="person"
-            data-name="${escapeHtml(item.name)}" data-von-id="${vonId}" data-bis-id="${bisId}"
+            data-name="${escapeHtml(item.name)}" data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"
             style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${escapeHtml(item.name)}</span>
@@ -563,7 +622,7 @@ function ereignisBalkenHtml(item) {
     return `
         <div class="zl-balken zl-balken-ereignis${projektKlasse}${verschobenKlasse}" data-balken data-typ="ereignis"
             data-id="${ereignis.id}" data-segment="${item.istVerschoben ? "verschoben" : "haupt"}"
-            data-von-id="${vonId}" data-bis-id="${bisId}"${projektAttr}
+            data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"${projektAttr}
             style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${praefix}${escapeHtml(ereignis.titel)}</span>
@@ -573,13 +632,13 @@ function ereignisBalkenHtml(item) {
 
 }
 
-function notizMarkerHtml(eintrag) {
+function notizMarkerHtml(item) {
 
     return `
-        <div class="zl-notiz-marker" data-balken data-typ="notiz" data-id="${eintrag.id}"
-            style="${punktStil(eintrag.idx)}" title="${escapeHtml(eintrag.text)}">
+        <div class="zl-notiz-marker" data-balken data-typ="notiz" data-id="${item.id}" data-lane="${item.lane}"
+            style="${punktStil(item.idx, item.lane)}" title="${escapeHtml(item.text)}">
             <span class="zl-notiz-punkt"></span>
-            <span class="zl-notiz-label">${escapeHtml(kuerzeText(eintrag.text, 24))}</span>
+            <span class="zl-notiz-label">${escapeHtml(kuerzeText(item.text, 24))}</span>
         </div>
     `;
 
@@ -645,6 +704,7 @@ function horizontalHtml() {
             <div class="zl-koerper">
                 <div class="zl-hintergrund" style="left:${LABEL_GROESSE}px; width:${gesamtGroesse}px;">
                     ${wochenendHtml}
+                    ${tagesGitterHtml()}
                     ${wochenGitterHtml}
                     ${feiertagFlaecheHtml}
                     <div class="zl-heute-linie"></div>
@@ -695,12 +755,14 @@ function ereignisAbschnittHtml(gesamtGroesse) {
 
 function tagesnotizenAbschnittHtml(gesamtGroesse) {
 
-    const markerHtml = tagesnotizenListe().map(e => notizMarkerHtml(e)).join("");
+    const { platziert, anzahlLanes } = tagesnotizenBalkenListe();
+    const markerHtml = platziert.map(item => notizMarkerHtml(item)).join("");
+    const hoehe = Math.max(40, anzahlLanes * LANE_PITCH + 6);
 
     return `
-        <div class="zl-zeile">
+        <div class="zl-zeile" style="min-height:${hoehe}px;">
             <div class="zl-label-zelle">Notizen</div>
-            <div class="zl-spur zl-spur-notizen" data-neu="notiz" style="width:${gesamtGroesse}px;">
+            <div class="zl-spur zl-spur-notizen" data-neu="notiz" style="width:${gesamtGroesse}px; height:${hoehe}px;">
                 ${markerHtml}
             </div>
         </div>
@@ -779,13 +841,14 @@ function vertikalHtml() {
         </div>
     `;
 
-    const notizMarkerHtmlV = tagesnotizenListe().map(e => notizMarkerHtml(e)).join("");
+    const notizGepackt = tagesnotizenBalkenListe();
+    const notizBreite = Math.max(84, notizGepackt.anzahlLanes * LANE_PITCH + 6);
 
     const notizSpalte = `
-        <div class="zl-spalte">
+        <div class="zl-spalte" style="flex:0 0 ${notizBreite}px;">
             <div class="zl-spalte-label">Notizen</div>
             <div class="zl-spur-v zl-spur-notizen-v" data-neu="notiz" style="height:${gesamtGroesse}px;">
-                ${notizMarkerHtmlV}
+                ${notizGepackt.platziert.map(item => notizMarkerHtml(item)).join("")}
             </div>
         </div>
     `;
@@ -800,6 +863,7 @@ function vertikalHtml() {
             </div>
             <div class="zl-hintergrund-v" style="top:${LABEL_GROESSE}px; left:${DATUM_SPALTE_BREITE}px; right:0; height:${gesamtGroesse}px;">
                 ${wochenendHtml}
+                ${tagesGitterHtml()}
                 ${wochenGitterHtml}
                 ${feiertagFlaecheHtml}
                 <div class="zl-heute-linie-v"></div>
@@ -937,6 +1001,10 @@ function spurZiehenStarten(e, spurEl) {
         if (!vorschauEl) {
             vorschauEl = document.createElement("div");
             vorschauEl.className = "zl-balken-vorschau";
+            if (neuTyp === "ereignis" && ereignisVerschiebeZeichnenId) {
+                vorschauEl.classList.add("zl-balken-vorschau-verschiebedatum");
+                vorschauEl.textContent = "↦ Verschiebedatum";
+            }
             spurEl.appendChild(vorschauEl);
         }
 
@@ -998,6 +1066,7 @@ function balkenZiehenStarten(e, balkenEl) {
 
     const startIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.vonId));
     const endIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.bisId));
+    const lane = Number(balkenEl.dataset.lane) || 0;
     let bewegt = false;
     let vorschauStart = startIdx0;
     let vorschauEnd = endIdx0;
@@ -1031,9 +1100,9 @@ function balkenZiehenStarten(e, balkenEl) {
         vorschauEnd = neuEnd;
 
         if (balkenEl.dataset.typ === "notiz") {
-            balkenEl.style.cssText = punktStil(neuStart);
+            balkenEl.style.cssText = punktStil(neuStart, lane);
         } else {
-            balkenEl.style.cssText = rechteckStil(neuStart, neuEnd);
+            balkenEl.style.cssText = rechteckStil(neuStart, neuEnd, lane);
         }
 
     }
@@ -1132,10 +1201,12 @@ function aufZeigerAbwaerts(e) {
 }
 
 // --- Personen-Dialog ---
+// Kein Datumsfeld mehr: der Zeitraum kommt ausschliesslich vom gezogenen
+// Balken (siehe Feedback) und wird hier nur schreibgeschützt angezeigt.
 
 function personDialogOeffnen({ alterName = null, alteTage = [], vonId, bisId }) {
 
-    bearbeiteterPersonBalken = { alterName, alteTage };
+    personDialogZustand = { alterName, alteTage, vonId, bisId };
     const istBearbeitung = alteTage.length > 0;
 
     document.getElementById("personTitelUeberschrift").textContent = istBearbeitung
@@ -1143,8 +1214,7 @@ function personDialogOeffnen({ alterName = null, alteTage = [], vonId, bisId }) 
         : alterName ? `Weiterer Zeitraum für ${alterName}` : "Person(en) eintragen";
 
     document.getElementById("personNameFeld").value = alterName || "";
-    document.getElementById("personVonFeld").value = vonId;
-    document.getElementById("personBisFeld").value = bisId;
+    document.getElementById("personZeitraumAnzeige").textContent = formatZeitraum(vonId, bisId);
 
     document.getElementById("personAktionen").innerHTML = `
         <button onclick="window.personBalkenSpeichernAusFormular()">Speichern</button>
@@ -1163,7 +1233,7 @@ function neuePersonButton() {
 
 function schliessePersonOverlay() {
     document.getElementById("personOverlay").classList.add("hidden");
-    bearbeiteterPersonBalken = null;
+    personDialogZustand = null;
 }
 
 async function personBalkenSpeichern({ alterName, alteTage, namenText, vonId, bisId }) {
@@ -1192,44 +1262,32 @@ async function personBalkenSpeichern({ alterName, alteTage, namenText, vonId, bi
 async function personBalkenSpeichernAusFormular() {
 
     const namenText = document.getElementById("personNameFeld").value.trim();
-    const vonId = document.getElementById("personVonFeld").value;
-    let bisId = document.getElementById("personBisFeld").value;
 
-    if (!namenText || !vonId) {
-        alert("Bitte Name(n) und Startdatum angeben.");
+    if (!namenText) {
+        alert("Bitte mindestens einen Namen eingeben.");
         return;
     }
 
-    if (!bisId || bisId < vonId) {
-        bisId = vonId;
-    }
-
-    await personBalkenSpeichern({
-        alterName: bearbeiteterPersonBalken?.alterName || null,
-        alteTage: bearbeiteterPersonBalken?.alteTage || [],
-        namenText,
-        vonId,
-        bisId
-    });
-
+    const { alterName, alteTage, vonId, bisId } = personDialogZustand;
+    await personBalkenSpeichern({ alterName, alteTage, namenText, vonId, bisId });
     schliessePersonOverlay();
 
 }
 
 async function personBalkenLoeschen() {
 
-    if (!bearbeiteterPersonBalken?.alterName) {
+    if (!personDialogZustand?.alterName) {
         return;
     }
 
-    if (!confirm(`"${bearbeiteterPersonBalken.alterName}" wirklich aus diesem Zeitraum entfernen?`)) {
+    if (!confirm(`"${personDialogZustand.alterName}" wirklich aus diesem Zeitraum entfernen?`)) {
         return;
     }
 
     const batch = writeBatch(db);
 
-    bearbeiteterPersonBalken.alteTage.forEach(id => {
-        batch.set(doc(db, "tage", id), { personen: arrayRemove(bearbeiteterPersonBalken.alterName) }, { merge: true });
+    personDialogZustand.alteTage.forEach(id => {
+        batch.set(doc(db, "tage", id), { personen: arrayRemove(personDialogZustand.alterName) }, { merge: true });
     });
 
     await batch.commit();
@@ -1238,37 +1296,63 @@ async function personBalkenLoeschen() {
 }
 
 // --- Ereignis-Dialog ---
+// Kein Datumsfeld mehr: Zeitraum und Verschiebedatum kommen ausschliesslich
+// vom gezogenen/eingezeichneten Balken (siehe Feedback) und werden hier nur
+// schreibgeschützt angezeigt.
 
 function ereignisFormularZuruecksetzen() {
-
     document.getElementById("ereignisTitelFeld").disabled = false;
-    document.getElementById("ereignisVonFeld").disabled = false;
-    document.getElementById("ereignisBisFeld").disabled = false;
-    document.getElementById("ereignisVerschiebeVonFeld").disabled = false;
-    document.getElementById("ereignisVerschiebeBisFeld").disabled = false;
     document.getElementById("ereignisProjektHinweis").innerHTML = "";
+}
+
+function ereignisZeitraumAnzeigen() {
+    document.getElementById("ereignisZeitraumAnzeige").textContent =
+        formatZeitraum(ereignisDialogZustand.vonId, ereignisDialogZustand.bisId);
+}
+
+// Verschiebedatum-Bereich im Dialog: zeigt entweder den bereits gesetzten
+// Zeitraum (mit Entfernen-Button) oder den Zeichnen-Button an – bei
+// Projekt-Ereignissen nur lesend (dort kommt das Verschiebedatum aus dem
+// Projekt selbst).
+function renderVerschiebeAnzeige(ereignis) {
+
+    const el = document.getElementById("ereignisVerschiebeAnzeige");
+
+    if (!ereignis.verschiebeVon || !ereignis.verschiebeBis) {
+        el.innerHTML = ereignis.projektId
+            ? ""
+            : `<button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>`;
+        return;
+    }
+
+    const entfernenBtn = ereignis.projektId
+        ? ""
+        : `<button type="button" class="abbrechen-button" onclick="window.verschiebedatumEntfernen()">Entfernen</button>`;
+
+    el.innerHTML = `
+        <p class="hinweis-text">Verschoben auf: ${formatZeitraum(ereignis.verschiebeVon, ereignis.verschiebeBis)}</p>
+        ${entfernenBtn}
+    `;
 
 }
 
 function neuesEreignis(prefill) {
 
     bearbeitetesEreignisId = null;
-
-    const vonId = prefill?.vonId || datumZuId(heute);
-    const bisId = prefill?.bisId || vonId;
+    ereignisDialogZustand = {
+        vonId: prefill?.vonId || datumZuId(heute),
+        bisId: prefill?.bisId || prefill?.vonId || datumZuId(heute)
+    };
 
     document.getElementById("ereignisTitelUeberschrift").textContent = "Neues Ereignis";
     ereignisFormularZuruecksetzen();
 
     document.getElementById("ereignisTitelFeld").value = "";
-    document.getElementById("ereignisVonFeld").value = vonId;
-    document.getElementById("ereignisBisFeld").value = bisId;
-    document.getElementById("ereignisVerschiebeVonFeld").value = "";
-    document.getElementById("ereignisVerschiebeBisFeld").value = "";
+    ereignisZeitraumAnzeigen();
+    renderVerschiebeAnzeige({ projektId: null, verschiebeVon: null, verschiebeBis: null });
 
     document.getElementById("ereignisAktionen").innerHTML = `
         <button onclick="window.ereignisSpeichern()">Speichern</button>
-        <button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>
         <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
     `;
 
@@ -1286,22 +1370,17 @@ function ereignisOeffnen(id) {
     }
 
     bearbeitetesEreignisId = id;
+    ereignisDialogZustand = { vonId: ereignis.vonDatum, bisId: ereignis.bisDatum };
     ereignisFormularZuruecksetzen();
 
     document.getElementById("ereignisTitelFeld").value = ereignis.titel || "";
-    document.getElementById("ereignisVonFeld").value = ereignis.vonDatum;
-    document.getElementById("ereignisBisFeld").value = ereignis.bisDatum;
-    document.getElementById("ereignisVerschiebeVonFeld").value = ereignis.verschiebeVon || "";
-    document.getElementById("ereignisVerschiebeBisFeld").value = ereignis.verschiebeBis || "";
+    ereignisZeitraumAnzeigen();
+    renderVerschiebeAnzeige(ereignis);
 
     if (ereignis.projektId) {
 
         document.getElementById("ereignisTitelUeberschrift").textContent = "Projekt-Ereignis";
         document.getElementById("ereignisTitelFeld").disabled = true;
-        document.getElementById("ereignisVonFeld").disabled = true;
-        document.getElementById("ereignisBisFeld").disabled = true;
-        document.getElementById("ereignisVerschiebeVonFeld").disabled = true;
-        document.getElementById("ereignisVerschiebeBisFeld").disabled = true;
 
         document.getElementById("ereignisProjektHinweis").innerHTML = `
             <p class="hinweis-text">
@@ -1321,7 +1400,6 @@ function ereignisOeffnen(id) {
 
         document.getElementById("ereignisAktionen").innerHTML = `
             <button onclick="window.ereignisSpeichern()">Speichern</button>
-            <button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>
             <button type="button" class="loeschen-button" onclick="window.ereignisLoeschen()">Löschen</button>
             <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
         `;
@@ -1339,34 +1417,22 @@ function schliesseEreignisOverlay() {
 async function ereignisGrunddatenSpeichernOhneSchliessen() {
 
     const titel = document.getElementById("ereignisTitelFeld").value.trim();
-    const von = document.getElementById("ereignisVonFeld").value;
-    let bis = document.getElementById("ereignisBisFeld").value;
 
-    if (!titel || !von) {
-        alert("Bitte Titel und Startdatum angeben.");
+    if (!titel) {
+        alert("Bitte einen Titel angeben.");
         return null;
     }
 
-    if (!bis || bis < von) {
-        bis = von;
-    }
-
-    let verschiebeVon = document.getElementById("ereignisVerschiebeVonFeld").value;
-    let verschiebeBis = document.getElementById("ereignisVerschiebeBisFeld").value;
-
-    if (verschiebeVon && (!verschiebeBis || verschiebeBis < verschiebeVon)) {
-        verschiebeBis = verschiebeVon;
-    }
-
+    const { vonId, bisId } = ereignisDialogZustand;
     const id = bearbeitetesEreignisId || doc(collection(db, "ereignisse")).id;
 
+    // verschiebeVon/-Bis werden hier bewusst nicht angefasst (merge:true) –
+    // die werden ausschliesslich über das Zeichnen bzw. "Entfernen" gesetzt.
     const daten = {
         titel,
-        vonDatum: von,
-        bisDatum: bis,
-        projektId: null,
-        verschiebeVon: verschiebeVon || deleteField(),
-        verschiebeBis: verschiebeVon ? verschiebeBis : deleteField()
+        vonDatum: vonId,
+        bisDatum: bisId,
+        projektId: null
     };
 
     if (!bearbeitetesEreignisId) {
@@ -1432,6 +1498,25 @@ function verschiebedatumZeichnenAbbrechen() {
     ereignisVerschiebeZeichnenId = null;
     zeichenHinweisVerbergen();
     render();
+}
+
+async function verschiebedatumEntfernen() {
+
+    if (!bearbeitetesEreignisId) {
+        return;
+    }
+
+    if (!confirm("Verschiebedatum wirklich entfernen?")) {
+        return;
+    }
+
+    await setDoc(doc(db, "ereignisse", bearbeitetesEreignisId), {
+        verschiebeVon: deleteField(),
+        verschiebeBis: deleteField()
+    }, { merge: true });
+
+    schliesseEreignisOverlay();
+
 }
 
 async function verschiebedatumUebernehmen(vonId, bisId) {
@@ -1511,6 +1596,7 @@ window.ereignisSpeichern = ereignisSpeichern;
 window.ereignisLoeschen = ereignisLoeschen;
 window.verschiebedatumZeichnenStarten = verschiebedatumZeichnenStarten;
 window.verschiebedatumZeichnenAbbrechen = verschiebedatumZeichnenAbbrechen;
+window.verschiebedatumEntfernen = verschiebedatumEntfernen;
 window.schliesseNotizOverlay = schliesseNotizOverlay;
 window.notizSpeichern = notizSpeichern;
 window.notizLoeschen = notizLoeschen;

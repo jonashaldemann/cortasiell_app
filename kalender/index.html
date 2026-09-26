@@ -56,25 +56,32 @@
             </div>
             <p>
                 Die Zeitleiste zeigt immer heute bis in einem Jahr – im Browser
-                horizontal, auf dem Handy vertikal.
+                horizontal, auf dem Handy vertikal. Daten werden ausschliesslich
+                per Ziehen auf der Zeitleiste gesetzt, nicht über Datumsfelder –
+                die dünnen Linien markieren die einzelnen Tage.
                 <br><br>
-                <b>Personen:</b> Auf der leeren Fläche einer Personenzeile
-                ziehen legt einen neuen Zeitraum an; bei "+ Person" kannst du
-                gleich mehrere Namen mit Komma getrennt eingeben (z.B.
-                "Alfred, Mimi, Anna") – für jeden Namen entsteht ein eigener
-                Balken. Einen bestehenden Balken kannst du verschieben, an den
-                Enden ziehen oder anklicken zum Bearbeiten/Löschen.
+                <b>Personen:</b> Auf der leeren Fläche der Personenzeile ziehen
+                legt einen neuen Zeitraum an; bei "+ Person" kannst du gleich
+                mehrere Namen mit Komma getrennt eingeben (z.B. "Alfred, Mimi,
+                Anna") – für jeden Namen entsteht ein eigener Balken. Balken
+                stehen nebeneinander und stapeln sich nur, wenn sie sich
+                zeitlich überlappen. Einen bestehenden Balken kannst du
+                verschieben, an den Enden ziehen oder anklicken zum
+                Bearbeiten/Löschen.
                 <br><br>
                 <b>Ereignisse &amp; Projekte:</b> "+ Ereignis" legt ein- oder
                 mehrtägige Ereignisse an. Ein Projekt mit Start-/Enddatum
                 erscheint automatisch (nur lesend, 📎) im Kalender. Ist ein
                 Termin evtl. verschoben, öffne das Ereignis und wähle
-                "Verschiebedatum zeichnen…" – anschliessend den zweiten Balken
-                direkt in derselben Zeile einzeichnen. Beide Balken bleiben
-                zusammengehörend, lassen sich aber unabhängig verschieben.
+                "Verschiebedatum zeichnen…" – anschliessend den zweiten,
+                entsprechend beschrifteten Balken direkt in der Ereigniszeile
+                einzeichnen. Beide Balken bleiben zusammengehörend, lassen sich
+                aber unabhängig verschieben.
                 <br><br>
                 <b>Tagesnotizen:</b> Auf die Notizzeile klicken trägt eine
                 kurze Notiz für diesen Tag ein (z.B. "Anreise, Heli um 8 Uhr").
+                Notizen stapeln sich ebenfalls, sobald sich ihre Texte
+                überlagern würden.
                 <br><br>
                 <b>Zoom:</b> Strg/Cmd + Scrollrad (oder Pinch-Geste), oder der
                 Schieberegler oben rechts.
@@ -96,25 +103,9 @@
                 <input type="text" id="ereignisTitelFeld" placeholder="z.B. Terrassenbau">
             </label>
 
-            <label class="aktivitaet-label">
-                Von
-                <input type="date" id="ereignisVonFeld">
-            </label>
+            <p class="hinweis-text" id="ereignisZeitraumAnzeige"></p>
 
-            <label class="aktivitaet-label">
-                Bis
-                <input type="date" id="ereignisBisFeld">
-            </label>
-
-            <label class="aktivitaet-label">
-                Verschiebedatum von (optional)
-                <input type="date" id="ereignisVerschiebeVonFeld">
-            </label>
-
-            <label class="aktivitaet-label">
-                Verschiebedatum bis (optional)
-                <input type="date" id="ereignisVerschiebeBisFeld">
-            </label>
+            <div id="ereignisVerschiebeAnzeige"></div>
 
             <div id="ereignisAktionen"></div>
         </div>
@@ -132,15 +123,7 @@
                 <input type="text" id="personNameFeld" placeholder="z.B. Alfred, Mimi, Anna">
             </label>
 
-            <label class="aktivitaet-label">
-                Von
-                <input type="date" id="personVonFeld">
-            </label>
-
-            <label class="aktivitaet-label">
-                Bis
-                <input type="date" id="personBisFeld">
-            </label>
+            <p class="hinweis-text" id="personZeitraumAnzeige"></p>
 
             <div id="personAktionen"></div>
         </div>

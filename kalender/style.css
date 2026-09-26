@@ -218,7 +218,7 @@ textarea {
 
 .zl-scroll {
     overflow: auto;
-    background: var(--surface-2);
+    background: var(--surface);
     border-radius: 14px;
     height: 65vh;
     min-height: 360px;
@@ -327,6 +327,15 @@ textarea {
     background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
+.zl-tag-gitterlinie {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px solid var(--border);
+    opacity: 0.35;
+}
+
 .zl-woche-gitterlinie {
     position: absolute;
     top: 0;
@@ -340,7 +349,7 @@ textarea {
     position: absolute;
     top: 0;
     bottom: 0;
-    background: var(--anthrazit-blass);
+    background: color-mix(in srgb, var(--anthrazit) 30%, transparent);
 }
 
 .zl-heute-linie {
@@ -397,20 +406,27 @@ textarea {
     cursor: crosshair;
 }
 
-.zl-spur-notizen {
-    min-height: 40px;
-}
-
 /* --- Balken/Marker (gemeinsam für horizontal & vertikal) --- */
 
 .zl-balken-vorschau {
     position: absolute;
-    top: 6px;
     height: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 7px;
     background: var(--text-muted);
     opacity: 0.4;
     border-radius: 5px;
     pointer-events: none;
+    font-size: 0.68rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.zl-balken-vorschau-verschiebedatum {
+    background: var(--akzent-ereignis);
+    opacity: 0.8;
 }
 
 .zl-balken {
@@ -480,7 +496,6 @@ textarea {
 
 .zl-notiz-marker {
     position: absolute;
-    top: 8px;
     display: flex;
     align-items: center;
     gap: 5px;
@@ -595,6 +610,15 @@ textarea {
     background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
+.zl-tag-gitterlinie-v {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px solid var(--border);
+    opacity: 0.35;
+}
+
 .zl-woche-gitterlinie-v {
     position: absolute;
     left: 0;
@@ -608,7 +632,7 @@ textarea {
     position: absolute;
     left: 0;
     right: 0;
-    background: var(--anthrazit-blass);
+    background: color-mix(in srgb, var(--anthrazit) 30%, transparent);
 }
 
 .zl-heute-linie-v {
@@ -690,8 +714,6 @@ textarea {
 }
 
 .zl-spur-v .zl-notiz-marker {
-    top: auto;
-    left: 8px;
     flex-direction: column;
 }
 
