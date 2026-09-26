@@ -169,10 +169,10 @@ function holeMenuvorschlaege() {
   }
 
   const apiKey =
-    PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+    PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
 
   if (!apiKey) {
-    return { fehler: "Kein Anthropic-API-Key hinterlegt (Script-Properties: ANTHROPIC_API_KEY fehlt)." };
+    return { fehler: "Kein Gemini-API-Key hinterlegt (Script-Properties: GEMINI_API_KEY fehlt)." };
   }
 
   const prompt =
@@ -186,30 +186,38 @@ function holeMenuvorschlaege() {
     "\"zusatzZutaten\" (Array von Strings, leeres Array falls keine " +
     "zusätzlichen Zutaten nötig sind).";
 
+  // Modell wählbar, z.B. "gemini-2.5-flash" (schnell/günstig) oder
+  // "gemini-2.5-pro" (bessere Qualität, teurer/langsamer).
+  const modell = "gemini-2.5-flash";
+
   const antwort =
-    UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", {
-      method: "post",
-      contentType: "application/json",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
-      payload: JSON.stringify({
-        model: "claude-sonnet-5", // günstigere Alternative: "claude-haiku-4-5-20251001"
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }]
-      }),
-      muteHttpExceptions: true
-    });
+    UrlFetchApp.fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + modell + ":generateContent",
+      {
+        method: "post",
+        contentType: "application/json",
+        headers: {
+          "x-goog-api-key": apiKey
+        },
+        payload: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        }),
+        muteHttpExceptions: true
+      }
+    );
 
   const status = antwort.getResponseCode();
   const body = JSON.parse(antwort.getContentText());
 
   if (status !== 200) {
-    return { fehler: "Anthropic-API-Fehler (" + status + "): " + (body.error?.message || antwort.getContentText()) };
+    return { fehler: "Gemini-API-Fehler (" + status + "): " + (body.error?.message || antwort.getContentText()) };
   }
 
-  const text = (body.content && body.content[0] && body.content[0].text) || "[]";
+  const text =
+    (body.candidates && body.candidates[0] && body.candidates[0].content &&
+     body.candidates[0].content.parts && body.candidates[0].content.parts[0] &&
+     body.candidates[0].content.parts[0].text) || "[]";
 
   try {
     return { rezepte: JSON.parse(text) };
