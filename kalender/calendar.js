@@ -963,7 +963,12 @@ function spurRechteck(el) {
 
 function koordinateZuTagIndex(rect, clientKoordinate) {
     const basis = istHorizontal() ? rect.left : rect.top;
-    return clampIdx(Math.round((clientKoordinate - basis) / zellGroesse));
+    // Math.floor, nicht Math.round: es geht um "in welcher Tages-Zelle
+    // liegt dieser Punkt" - mit Runden würde die rechte Hälfte einer
+    // Zelle schon auf den nächsten Tag "schnappen", wodurch ein Balken
+    // z.B. für 9.-11. beim Loslassen in der rechten Hälfte des 11. als
+    // 9.-12. gespeichert würde (siehe Feedback).
+    return clampIdx(Math.floor((clientKoordinate - basis) / zellGroesse));
 }
 
 function spurZiehenStarten(e, spurEl) {
