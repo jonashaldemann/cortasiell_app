@@ -617,12 +617,11 @@ function ereignisBalkenHtml(item) {
     const praefix = item.istVerschoben ? "↦ " : "";
     const vonId = tagIndexZuId(item.startIdx);
     const bisId = tagIndexZuId(item.endIdx);
-    const projektAttr = ereignis.projektId ? ` data-projekt-verknuepft="1"` : "";
 
     return `
         <div class="zl-balken zl-balken-ereignis${projektKlasse}${verschobenKlasse}" data-balken data-typ="ereignis"
             data-id="${ereignis.id}" data-segment="${item.istVerschoben ? "verschoben" : "haupt"}"
-            data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"${projektAttr}
+            data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"
             style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${praefix}${escapeHtml(ereignis.titel)}</span>
@@ -1055,16 +1054,12 @@ function spurZiehenStarten(e, spurEl) {
 
 function balkenZiehenStarten(e, balkenEl) {
 
-    // Projekt-verknüpfte Ereignisse sind nur über die Projektseite
-    // veränderbar – hier nur anklickbar (öffnet den Hinweis-Dialog).
-    if (balkenEl.dataset.projektVerknuepft === "1") {
-        balkenAnklicken(balkenEl);
-        return;
-    }
-
+    // Projekt-verknüpfte Ereignisse sind auch hier verschieb-/anpassbar
+    // (siehe Feedback) – nur der Titel bleibt der Projektseite vorbehalten.
+    // balkenAendernSpeichern() synchronisiert eine Änderung zusätzlich
+    // zurück ins Projekt-Dokument.
     e.preventDefault();
 
-    const rect = spurRechteck(balkenEl.parentElement);
     const startKoordinate = zeigerKoordinate(e);
     const griffEl = e.target.closest("[data-griff]");
     const modus = griffEl ? griffEl.dataset.griff : "verschieben"; // "start" | "ende" | "verschieben"
@@ -1072,25 +1067,12 @@ function balkenZiehenStarten(e, balkenEl) {
     const startIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.vonId));
     const endIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.bisId));
     const lane = Number(balkenEl.dataset.lane) || 0;
-    let bewegt = false;
     let vorschauStart = startIdx0;
     let vorschauEnd = endIdx0;
 
     function aufBewegen(ev) {
 
-        const aktKoordinate = zeigerKoordinate(ev);
-
-        // Ohne diese Schwelle würde jedes kleinste Zittern der Maus/des
-        // Fingers beim Antippen (das immer noch auf einen anderen Tag
-        // rundet) sofort als "verschoben" zählen – ein einfacher Klick
-        // zum Bearbeiten/Löschen käme dann nie mehr durch, siehe Feedback
-        // ("Notizen kaum noch anklickbar").
-        if (!bewegt && Math.abs(aktKoordinate - startKoordinate) < ZIEH_SCHWELLE_PX) {
-            return;
-        }
-
-        bewegt = true;
-        const deltaTage = Math.round((aktKoordinate - startKoordinate) / zellGroesse);
+        const deltaTage = Math.round((zeigerKoordinate(ev) - startKoordinate) / zellGroesse);
 
         let neuStart = startIdx0;
         let neuEnd = endIdx0;
@@ -1125,7 +1107,15 @@ function balkenZiehenStarten(e, balkenEl) {
         window.removeEventListener("pointermove", aufBewegen);
         window.removeEventListener("pointerup", aufLoslassen);
 
-        if (!bewegt) {
+        // Klick vs. Ziehen wird am ENDERGEBNIS entschieden (hat sich der
+        // Tag tatsächlich geändert?), nicht an der rohen Mausbewegung – ein
+        // Tap ist so gut wie nie pixelgenau, ein paar Pixel Zittern dürfen
+        // also nicht schon als "verschoben" zählen, solange am Ende
+        // derselbe Tag rauskommt (siehe Feedback "Notizen kaum anklickbar").
+        if (vorschauStart === startIdx0 && vorschauEnd === endIdx0) {
+            balkenEl.style.cssText = balkenEl.dataset.typ === "notiz"
+                ? punktStil(startIdx0, lane)
+                : rechteckStil(startIdx0, endIdx0, lane);
             balkenAnklicken(balkenEl);
             return;
         }
@@ -1171,11 +1161,24 @@ async function balkenAendernSpeichern(balkenEl, neuStart, neuEnd) {
 
     } else if (typ === "ereignis") {
 
-        const daten = balkenEl.dataset.segment === "haupt"
+        const istHaupt = balkenEl.dataset.segment === "haupt";
+        const daten = istHaupt
             ? { vonDatum: vonId, bisDatum: bisId }
             : { verschiebeVon: vonId, verschiebeBis: bisId };
 
         await setDoc(doc(db, "ereignisse", balkenEl.dataset.id), daten, { merge: true });
+
+        // Bei Projekt-Ereignissen auch das Projekt-Dokument selbst
+        // nachführen, sonst würde ein erneutes Speichern des Projekts den
+        // hier verschobenen/verlängerten Balken wieder zurücksetzen.
+        const projektId = ereignisse.find(e => e.id === balkenEl.dataset.id)?.projektId;
+
+        if (projektId) {
+            const projektDaten = istHaupt
+                ? { startDatum: vonId, endDatum: bisId }
+                : { verschiebeStart: vonId, verschiebeEnde: bisId };
+            await setDoc(doc(db, "projekte", projektId), projektDaten, { merge: true });
+        }
 
     } else if (typ === "notiz") {
 
@@ -1397,8 +1400,10 @@ function ereignisOeffnen(id) {
 
         document.getElementById("ereignisProjektHinweis").innerHTML = `
             <p class="hinweis-text">
-                Verknüpft mit einem Projekt – Titel und Zeitraum lassen sich
-                nur dort ändern.
+                Verknüpft mit einem Projekt – nur der Titel lässt sich nur
+                dort ändern. Den Balken kannst du hier direkt verschieben
+                oder an den Enden ziehen, das Projekt wird automatisch
+                nachgeführt.
             </p>
         `;
 
