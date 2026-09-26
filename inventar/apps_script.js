@@ -279,6 +279,14 @@ function holeMenuvorschlaege() {
 
 }
 
+// Manueller Test im Skript-Editor: Funktion oben im Dropdown auswählen,
+// "Ausführen" klicken, Ergebnis erscheint im Ausführungsprotokoll -
+// kein Deploy nötig. Wird von doGet/doPost nicht aufgerufen, rein zur
+// Fehlersuche.
+function testMenuvorschlaege() {
+  console.log(JSON.stringify(holeMenuvorschlaege()));
+}
+
 function testDaten() {
 
     const sheet = SpreadsheetApp
