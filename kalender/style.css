@@ -419,7 +419,7 @@ textarea {
     padding: 0 7px;
     background: var(--text-muted);
     opacity: 0.4;
-    border-radius: 5px;
+    border-radius: 3px;
     pointer-events: none;
     font-size: 0.68rem;
     color: #fff;
@@ -436,7 +436,7 @@ textarea {
     position: absolute;
     top: 6px;
     height: 22px;
-    border-radius: 5px;
+    border-radius: 3px;
     display: flex;
     align-items: center;
     overflow: hidden;

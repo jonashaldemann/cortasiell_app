@@ -552,14 +552,13 @@ function monatsStarts() {
 
 function rechteckStil(startIdx, endIdx, lane = 0) {
 
-    // RAND lässt an beiden Enden eine kleine Lücke zur Tages-Gitterlinie -
-    // ohne die stösst ein korrekt bis Sonntag gehender Balken optisch exakt
-    // an die Montags-Linie und sieht so aus, als würde er in den Montag
-    // hineinreichen (siehe Feedback). Reine Optik, ändert nichts an den
-    // gespeicherten Tagen.
-    const RAND = Math.min(4, zellGroesse * 0.25);
-    const start = startIdx * zellGroesse + RAND;
-    const laenge = (endIdx - startIdx + 1) * zellGroesse - RAND * 2;
+    // Voll von Gitterlinie zu Gitterlinie füllen, kein Rand - ein
+    // Ein-Tages-Balken muss die ganze Tageszelle ausfüllen (I IXI I), nicht
+    // nur einen schmalen Streifen in der Mitte. Ein Rand an beiden Enden
+    // hatte genau das kaputtgemacht (siehe Feedback) und nebenbei jeden
+    // Balken auch an den äusseren Enden optisch verkürzt.
+    const start = startIdx * zellGroesse;
+    const laenge = (endIdx - startIdx + 1) * zellGroesse;
     const quer = 6 + lane * LANE_PITCH; // Versatz quer zur Datumsachse (gestapelte Lanes)
 
     return istHorizontal()
