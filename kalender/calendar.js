@@ -1073,11 +1073,19 @@ function balkenZiehenStarten(e, balkenEl) {
 
     function aufBewegen(ev) {
 
-        const deltaTage = Math.round((zeigerKoordinate(ev) - startKoordinate) / zellGroesse);
+        const aktKoordinate = zeigerKoordinate(ev);
 
-        if (deltaTage !== 0) {
-            bewegt = true;
+        // Ohne diese Schwelle würde jedes kleinste Zittern der Maus/des
+        // Fingers beim Antippen (das immer noch auf einen anderen Tag
+        // rundet) sofort als "verschoben" zählen – ein einfacher Klick
+        // zum Bearbeiten/Löschen käme dann nie mehr durch, siehe Feedback
+        // ("Notizen kaum noch anklickbar").
+        if (!bewegt && Math.abs(aktKoordinate - startKoordinate) < ZIEH_SCHWELLE_PX) {
+            return;
         }
+
+        bewegt = true;
+        const deltaTage = Math.round((aktKoordinate - startKoordinate) / zellGroesse);
 
         let neuStart = startIdx0;
         let neuEnd = endIdx0;
@@ -1400,7 +1408,7 @@ function ereignisOeffnen(id) {
 
         document.getElementById("ereignisAktionen").innerHTML = `
             <button onclick="window.ereignisSpeichern()">Speichern</button>
-            <button type="button" class="loeschen-button" onclick="window.ereignisLoeschen()">Löschen</button>
+            <button type="button" class="loeschen-button" onclick="window.ereignisLoeschen()">Ganzes Ereignis löschen</button>
             <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
         `;
 
@@ -1458,7 +1466,7 @@ async function ereignisLoeschen() {
         return;
     }
 
-    if (!confirm("Ereignis wirklich löschen?")) {
+    if (!confirm("Ganzes Ereignis wirklich löschen (inkl. Verschiebedatum, falls gesetzt)?")) {
         return;
     }
 

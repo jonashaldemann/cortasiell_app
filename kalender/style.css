@@ -190,8 +190,11 @@ textarea {
     width: 110px;
 }
 
+/* !important, weil sonst gleich spezifische spätere Regeln (z.B.
+   .zl-zeichen-hinweis mit display:flex) diese Utility-Klasse per
+   Source-Order-Tiebreak überstimmen könnten. */
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .zl-zeichen-hinweis {
