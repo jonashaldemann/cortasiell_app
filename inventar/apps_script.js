@@ -186,9 +186,9 @@ function holeMenuvorschlaege() {
     "\"zusatzZutaten\" (Array von Strings, leeres Array falls keine " +
     "zusätzlichen Zutaten nötig sind).";
 
-  // Modell wählbar, z.B. "gemini-2.5-flash" (schnell/günstig) oder
-  // "gemini-2.5-pro" (bessere Qualität, teurer/langsamer).
-  const modell = "gemini-2.5-flash";
+  // "gemini-2.5-flash" ist für neue Nutzer nicht mehr verfügbar (Stand
+  // September 2026, Google-Fehlermeldung empfiehlt "gemini-3.8-flash").
+  const modell = "gemini-3.8-flash";
 
   const antwort =
     UrlFetchApp.fetch(
