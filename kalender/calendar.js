@@ -61,6 +61,7 @@ const ZELL_TAGESZAHL_MIN = 20; // ab dieser Zellgrösse lohnt sich eine Tageszah
 const LABEL_GROESSE = 130;
 const SPALTEN_BREITE = 84;
 const DATUM_SPALTE_BREITE = 56;
+const LANE_PITCH = 28; // px zwischen zwei gestapelten Balken (Höhe horizontal / Breite vertikal)
 
 let ereignisse = [];
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
@@ -339,30 +340,71 @@ function segmentClip(vonId, bisId) {
 
 }
 
-function ereignisZeilen() {
+// Packt beliebige Zeit-Intervalle in möglichst wenige Lanes (Reihen quer
+// zur Datumsachse) – Standard-Interval-Scheduling: ein Intervall bekommt
+// die erste Lane, deren letztes Intervall schon vorbei ist, sonst eine
+// neue. So stehen Balken nebeneinander (gleiche Lane, keine Überlappung)
+// und stapeln sich nur dort, wo sie sich tatsächlich zeitlich überlappen –
+// keine feste Zeile pro Person/Ereignis nötig.
+function packLanes(intervalle) {
 
-    return ereignisse
-        .map(e => {
+    const sortiert = [...intervalle].sort((a, b) =>
+        a.startIdx - b.startIdx || (b.endIdx - b.startIdx) - (a.endIdx - a.startIdx)
+    );
 
-            const segmente = [];
-            const haupt = segmentClip(e.vonDatum, e.bisDatum);
+    const laneEnden = []; // laneEnden[i] = letzter belegter Tag-Index der Lane i
+    const platziert = [];
 
-            if (haupt) {
-                segmente.push({ ...haupt, istVerschoben: false });
+    sortiert.forEach(iv => {
+
+        let lane = laneEnden.findIndex(ende => ende < iv.startIdx);
+
+        if (lane === -1) {
+            lane = laneEnden.length;
+        }
+
+        laneEnden[lane] = iv.endIdx;
+        platziert.push({ ...iv, lane });
+
+    });
+
+    return { platziert, anzahlLanes: Math.max(1, laneEnden.length) };
+
+}
+
+function personenBalkenListe() {
+
+    const intervalle = personenNamenListe().flatMap(name =>
+        personenLaeufe(name).map(l => ({ ...l, name }))
+    );
+
+    return packLanes(intervalle);
+
+}
+
+function ereignisBalkenListe() {
+
+    const intervalle = ereignisse.flatMap(e => {
+
+        const segmente = [];
+        const haupt = segmentClip(e.vonDatum, e.bisDatum);
+
+        if (haupt) {
+            segmente.push({ ...haupt, istVerschoben: false, ereignis: e });
+        }
+
+        if (e.verschiebeVon && e.verschiebeBis) {
+            const versch = segmentClip(e.verschiebeVon, e.verschiebeBis);
+            if (versch) {
+                segmente.push({ ...versch, istVerschoben: true, ereignis: e });
             }
+        }
 
-            if (e.verschiebeVon && e.verschiebeBis) {
-                const versch = segmentClip(e.verschiebeVon, e.verschiebeBis);
-                if (versch) {
-                    segmente.push({ ...versch, istVerschoben: true });
-                }
-            }
+        return segmente;
 
-            return { ereignis: e, segmente };
+    });
 
-        })
-        .filter(z => z.segmente.length > 0)
-        .sort((a, b) => a.segmente[0].startIdx - b.segmente[0].startIdx);
+    return packLanes(intervalle);
 
 }
 
@@ -470,14 +512,15 @@ function monatsStarts() {
 
 // --- Geometrie-Helfer (Achse hängt von der Orientierung ab) ---
 
-function rechteckStil(startIdx, endIdx) {
+function rechteckStil(startIdx, endIdx, lane = 0) {
 
     const start = startIdx * zellGroesse;
     const laenge = (endIdx - startIdx + 1) * zellGroesse;
+    const quer = 6 + lane * LANE_PITCH; // Versatz quer zur Datumsachse (gestapelte Lanes)
 
     return istHorizontal()
-        ? `left:${start}px; width:${laenge}px;`
-        : `top:${start}px; height:${laenge}px;`;
+        ? `left:${start}px; width:${laenge}px; top:${quer}px;`
+        : `top:${start}px; height:${laenge}px; left:${quer}px;`;
 
 }
 
@@ -490,37 +533,38 @@ function punktStil(idx) {
 
 // --- Bar-/Marker-HTML ---
 
-function personBalkenHtml(name, lauf) {
+function personBalkenHtml(item) {
 
-    const vonId = tagIndexZuId(lauf.startIdx);
-    const bisId = tagIndexZuId(lauf.endIdx);
+    const vonId = tagIndexZuId(item.startIdx);
+    const bisId = tagIndexZuId(item.endIdx);
 
     return `
         <div class="zl-balken zl-balken-person" data-balken data-typ="person"
-            data-name="${escapeHtml(name)}" data-von-id="${vonId}" data-bis-id="${bisId}"
-            style="${rechteckStil(lauf.startIdx, lauf.endIdx)}">
+            data-name="${escapeHtml(item.name)}" data-von-id="${vonId}" data-bis-id="${bisId}"
+            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
             <span class="zl-griff" data-griff="start"></span>
-            <span class="zl-balken-titel">${escapeHtml(name)}</span>
+            <span class="zl-balken-titel">${escapeHtml(item.name)}</span>
             <span class="zl-griff" data-griff="ende"></span>
         </div>
     `;
 
 }
 
-function ereignisBalkenHtml(ereignis, segment) {
+function ereignisBalkenHtml(item) {
 
+    const ereignis = item.ereignis;
     const projektKlasse = ereignis.projektId ? " zl-projekt-verknuepft" : "";
-    const verschobenKlasse = segment.istVerschoben ? " zl-verschoben" : "";
-    const praefix = segment.istVerschoben ? "↦ " : "";
-    const vonId = tagIndexZuId(segment.startIdx);
-    const bisId = tagIndexZuId(segment.endIdx);
+    const verschobenKlasse = item.istVerschoben ? " zl-verschoben" : "";
+    const praefix = item.istVerschoben ? "↦ " : "";
+    const vonId = tagIndexZuId(item.startIdx);
+    const bisId = tagIndexZuId(item.endIdx);
     const projektAttr = ereignis.projektId ? ` data-projekt-verknuepft="1"` : "";
 
     return `
         <div class="zl-balken zl-balken-ereignis${projektKlasse}${verschobenKlasse}" data-balken data-typ="ereignis"
-            data-id="${ereignis.id}" data-segment="${segment.istVerschoben ? "verschoben" : "haupt"}"
+            data-id="${ereignis.id}" data-segment="${item.istVerschoben ? "verschoben" : "haupt"}"
             data-von-id="${vonId}" data-bis-id="${bisId}"${projektAttr}
-            style="${rechteckStil(segment.startIdx, segment.endIdx)}">
+            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${praefix}${escapeHtml(ereignis.titel)}</span>
             <span class="zl-griff" data-griff="ende"></span>
@@ -616,29 +660,16 @@ function horizontalHtml() {
 
 function personenAbschnittHtml(gesamtGroesse) {
 
-    const namen = personenNamenListe();
-
-    const zeilenHtml = namen.map(name => {
-
-        const balkenHtml = personenLaeufe(name).map(l => personBalkenHtml(name, l)).join("");
-
-        return `
-            <div class="zl-zeile">
-                <div class="zl-label-zelle" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-                <div class="zl-spur" data-neu="person-segment" data-name="${escapeHtml(name)}" style="width:${gesamtGroesse}px;">
-                    ${balkenHtml}
-                </div>
-            </div>
-        `;
-
-    }).join("");
+    const { platziert, anzahlLanes } = personenBalkenListe();
+    const balkenHtml = platziert.map(item => personBalkenHtml(item)).join("");
+    const hoehe = anzahlLanes * LANE_PITCH + 6;
 
     return `
-        <div class="zl-abschnitt-titel">Personen</div>
-        ${zeilenHtml}
-        <div class="zl-zeile zl-hinzufuegen-zeile">
-            <div class="zl-label-zelle"><span class="zl-hinzufuegen-text">+ Person</span></div>
-            <div class="zl-spur" data-neu="person-neu" style="width:${gesamtGroesse}px;"></div>
+        <div class="zl-zeile" style="min-height:${hoehe}px;">
+            <div class="zl-label-zelle">Personen</div>
+            <div class="zl-spur" data-neu="person" style="width:${gesamtGroesse}px; height:${hoehe}px;">
+                ${balkenHtml}
+            </div>
         </div>
     `;
 
@@ -646,30 +677,17 @@ function personenAbschnittHtml(gesamtGroesse) {
 
 function ereignisAbschnittHtml(gesamtGroesse) {
 
-    const zeilenHtml = ereignisZeilen().map(z => {
-
-        const balkenHtml = z.segmente.map(seg => ereignisBalkenHtml(z.ereignis, seg)).join("");
-        const projektHinweis = z.ereignis.projektId ? " 📎" : "";
-        const doppelKlasse = z.segmente.length > 1 ? " zl-zeile-doppelt" : "";
-        const armiertKlasse = ereignisVerschiebeZeichnenId === z.ereignis.id ? " zl-zeile-zeichnen-aktiv" : "";
-
-        return `
-            <div class="zl-zeile${doppelKlasse}${armiertKlasse}">
-                <div class="zl-label-zelle" title="${escapeHtml(z.ereignis.titel)}">${escapeHtml(z.ereignis.titel)}${projektHinweis}</div>
-                <div class="zl-spur" data-neu="ereignis-segment" data-id="${z.ereignis.id}" style="width:${gesamtGroesse}px;">
-                    ${balkenHtml}
-                </div>
-            </div>
-        `;
-
-    }).join("");
+    const { platziert, anzahlLanes } = ereignisBalkenListe();
+    const balkenHtml = platziert.map(item => ereignisBalkenHtml(item)).join("");
+    const hoehe = anzahlLanes * LANE_PITCH + 6;
+    const armiertKlasse = ereignisVerschiebeZeichnenId ? " zl-zeile-zeichnen-aktiv" : "";
 
     return `
-        <div class="zl-abschnitt-titel">Ereignisse &amp; Projekte</div>
-        ${zeilenHtml}
-        <div class="zl-zeile zl-hinzufuegen-zeile">
-            <div class="zl-label-zelle"><span class="zl-hinzufuegen-text">+ Ereignis</span></div>
-            <div class="zl-spur" data-neu="ereignis-neu" style="width:${gesamtGroesse}px;"></div>
+        <div class="zl-zeile${armiertKlasse}" style="min-height:${hoehe}px;">
+            <div class="zl-label-zelle">Ereignisse</div>
+            <div class="zl-spur" data-neu="ereignis" style="width:${gesamtGroesse}px; height:${hoehe}px;">
+                ${balkenHtml}
+            </div>
         </div>
     `;
 
@@ -680,9 +698,8 @@ function tagesnotizenAbschnittHtml(gesamtGroesse) {
     const markerHtml = tagesnotizenListe().map(e => notizMarkerHtml(e)).join("");
 
     return `
-        <div class="zl-abschnitt-titel">Tagesnotizen</div>
         <div class="zl-zeile">
-            <div class="zl-label-zelle"><span class="zl-hinweis-mini">Klicken zum Eintragen</span></div>
+            <div class="zl-label-zelle">Notizen</div>
             <div class="zl-spur zl-spur-notizen" data-neu="notiz" style="width:${gesamtGroesse}px;">
                 ${markerHtml}
             </div>
@@ -737,48 +754,28 @@ function vertikalHtml() {
         `<div class="zl-feiertag-flaeche-v" style="top:${f.idx * zellGroesse}px; height:${zellGroesse}px;"></div>`
     ).join("");
 
-    const namen = personenNamenListe();
+    const personenGepackt = personenBalkenListe();
+    const personenBreite = personenGepackt.anzahlLanes * LANE_PITCH + 6;
 
-    const personenSpaltenHtml = namen.map(name => {
-        const balkenHtml = personenLaeufe(name).map(l => personBalkenHtml(name, l)).join("");
-        return `
-            <div class="zl-spalte">
-                <div class="zl-spalte-label" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
-                <div class="zl-spur-v" data-neu="person-segment" data-name="${escapeHtml(name)}" style="height:${gesamtGroesse}px;">
-                    ${balkenHtml}
-                </div>
+    const personenSpalte = `
+        <div class="zl-spalte" style="flex:0 0 ${personenBreite}px;">
+            <div class="zl-spalte-label">Personen</div>
+            <div class="zl-spur-v" data-neu="person" style="height:${gesamtGroesse}px;">
+                ${personenGepackt.platziert.map(item => personBalkenHtml(item)).join("")}
             </div>
-        `;
-    }).join("");
-
-    const personenHinzufuegenSpalte = `
-        <div class="zl-spalte zl-hinzufuegen-spalte">
-            <div class="zl-spalte-label">+ Person</div>
-            <div class="zl-spur-v" data-neu="person-neu" style="height:${gesamtGroesse}px;"></div>
         </div>
     `;
 
-    const ereignisZeilenDaten = ereignisZeilen();
+    const ereignisGepackt = ereignisBalkenListe();
+    const ereignisBreite = ereignisGepackt.anzahlLanes * LANE_PITCH + 6;
+    const ereignisArmiertKlasse = ereignisVerschiebeZeichnenId ? " zl-spalte-zeichnen-aktiv" : "";
 
-    const ereignisSpaltenHtml = ereignisZeilenDaten.map(z => {
-        const balkenHtml = z.segmente.map(seg => ereignisBalkenHtml(z.ereignis, seg)).join("");
-        const projektHinweis = z.ereignis.projektId ? " 📎" : "";
-        const doppelKlasse = z.segmente.length > 1 ? " zl-spalte-doppelt" : "";
-        const armiertKlasse = ereignisVerschiebeZeichnenId === z.ereignis.id ? " zl-spalte-zeichnen-aktiv" : "";
-        return `
-            <div class="zl-spalte${doppelKlasse}${armiertKlasse}">
-                <div class="zl-spalte-label" title="${escapeHtml(z.ereignis.titel)}">${escapeHtml(z.ereignis.titel)}${projektHinweis}</div>
-                <div class="zl-spur-v" data-neu="ereignis-segment" data-id="${z.ereignis.id}" style="height:${gesamtGroesse}px;">
-                    ${balkenHtml}
-                </div>
+    const ereignisSpalte = `
+        <div class="zl-spalte${ereignisArmiertKlasse}" style="flex:0 0 ${ereignisBreite}px;">
+            <div class="zl-spalte-label">Ereignisse</div>
+            <div class="zl-spur-v" data-neu="ereignis" style="height:${gesamtGroesse}px;">
+                ${ereignisGepackt.platziert.map(item => ereignisBalkenHtml(item)).join("")}
             </div>
-        `;
-    }).join("");
-
-    const ereignisHinzufuegenSpalte = `
-        <div class="zl-spalte zl-hinzufuegen-spalte">
-            <div class="zl-spalte-label">+ Ereignis</div>
-            <div class="zl-spur-v" data-neu="ereignis-neu" style="height:${gesamtGroesse}px;"></div>
         </div>
     `;
 
@@ -793,8 +790,6 @@ function vertikalHtml() {
         </div>
     `;
 
-    const anzahlSpalten = (namen.length + 1) + (ereignisZeilenDaten.length + 1) + 1;
-
     return `
         <div class="zl-inner-v" style="min-height:${LABEL_GROESSE + gesamtGroesse}px;">
             <div class="zl-datum-spalte">
@@ -803,15 +798,15 @@ function vertikalHtml() {
                     ${monateHtml}${wochenHtml}${tageHtml}${feiertagHtml}
                 </div>
             </div>
-            <div class="zl-hintergrund-v" style="top:${LABEL_GROESSE}px; left:${DATUM_SPALTE_BREITE}px; width:${anzahlSpalten * SPALTEN_BREITE}px; height:${gesamtGroesse}px;">
+            <div class="zl-hintergrund-v" style="top:${LABEL_GROESSE}px; left:${DATUM_SPALTE_BREITE}px; right:0; height:${gesamtGroesse}px;">
                 ${wochenendHtml}
                 ${wochenGitterHtml}
                 ${feiertagFlaecheHtml}
                 <div class="zl-heute-linie-v"></div>
             </div>
             <div class="zl-spalten-gruppe">
-                ${personenSpaltenHtml}${personenHinzufuegenSpalte}
-                ${ereignisSpaltenHtml}${ereignisHinzufuegenSpalte}
+                ${personenSpalte}
+                ${ereignisSpalte}
                 ${notizSpalte}
             </div>
         </div>
@@ -909,15 +904,7 @@ function koordinateZuTagIndex(rect, clientKoordinate) {
 
 function spurZiehenStarten(e, spurEl) {
 
-    const neuTyp = spurEl.dataset.neu;
-
-    // Nur die Zeile/Spalte, für die gerade ein Verschiebedatum eingezeichnet
-    // wird, reagiert auf Ziehen – jede andere bestehende Ereignis-Spur bleibt
-    // in diesem Modus inaktiv (kein versehentliches Umbiegen eines anderen
-    // Ereignisses).
-    if (neuTyp === "ereignis-segment" && spurEl.dataset.id !== ereignisVerschiebeZeichnenId) {
-        return;
-    }
+    const neuTyp = spurEl.dataset.neu; // "person" | "ereignis" | "notiz"
 
     e.preventDefault();
 
@@ -972,14 +959,14 @@ function spurZiehenStarten(e, spurEl) {
         const vonId = tagIndexZuId(lo);
         const bisId = tagIndexZuId(hi);
 
-        if (neuTyp === "person-neu") {
+        if (neuTyp === "person") {
             personDialogOeffnen({ vonId, bisId });
-        } else if (neuTyp === "person-segment") {
-            personDialogOeffnen({ alterName: spurEl.dataset.name, alteTage: [], vonId, bisId });
-        } else if (neuTyp === "ereignis-neu") {
-            neuesEreignis({ vonId, bisId });
-        } else if (neuTyp === "ereignis-segment") {
-            verschiebedatumUebernehmen(vonId, bisId);
+        } else if (neuTyp === "ereignis") {
+            if (ereignisVerschiebeZeichnenId) {
+                verschiebedatumUebernehmen(vonId, bisId);
+            } else {
+                neuesEreignis({ vonId, bisId });
+            }
         } else if (neuTyp === "notiz") {
             tagesnotizDialogOeffnen(vonId);
         }

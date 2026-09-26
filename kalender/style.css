@@ -352,17 +352,11 @@ textarea {
     background: var(--akzent-kalender);
 }
 
-/* --- Abschnitte/Zeilen --- */
-
-.zl-abschnitt-titel {
-    position: relative;
-    z-index: 1;
-    padding: 10px 12px 4px;
-    font-family: var(--font-medium);
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    background: var(--surface-2);
-}
+/* --- Abschnitte/Zeilen ---
+   Je Abschnitt (Personen/Ereignisse/Notizen) genau eine Zeile – Balken
+   werden per Lane-Packing (siehe packLanes() in calendar.js) nebeneinander
+   platziert und stapeln sich nur bei echter zeitlicher Überlappung, statt
+   einer festen Zeile pro Person/Ereignis. */
 
 .zl-zeile {
     position: relative;
@@ -372,8 +366,6 @@ textarea {
     min-height: 34px;
     border-bottom: 1px solid var(--border);
 }
-
-.zl-zeile.zl-zeile-doppelt { min-height: 58px; }
 
 .zl-zeile.zl-zeile-zeichnen-aktiv {
     background: color-mix(in srgb, var(--akzent-ereignis) 12%, transparent);
@@ -389,15 +381,11 @@ textarea {
     align-items: center;
     padding: 4px 10px;
     font-size: 0.8rem;
+    font-family: var(--font-medium);
+    color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.zl-hinzufuegen-text,
-.zl-hinweis-mini {
-    color: var(--text-muted);
-    font-size: 0.75rem;
 }
 
 .zl-spur {
@@ -479,7 +467,6 @@ textarea {
 .zl-balken-ereignis.zl-verschoben {
     background: var(--akzent-ereignis-hell);
     color: var(--text);
-    top: 30px;
 }
 
 .zl-balken-ereignis.zl-verschoben:hover {
@@ -640,11 +627,9 @@ textarea {
 }
 
 .zl-spalte {
-    flex: 0 0 84px; /* SPALTEN_BREITE */
+    flex: 0 0 84px; /* SPALTEN_BREITE – Notizen-Spalte; Personen/Ereignisse setzen ihre Breite per Lane-Anzahl inline */
     border-right: 1px solid var(--border);
 }
-
-.zl-spalte.zl-spalte-doppelt { flex-basis: 156px; }
 
 .zl-spalte.zl-spalte-zeichnen-aktiv {
     background: color-mix(in srgb, var(--akzent-ereignis) 12%, transparent);
@@ -671,22 +656,19 @@ textarea {
 
 .zl-spur-v {
     position: relative;
+    width: 100%;
 }
 
 .zl-spur-v[data-neu] {
     cursor: crosshair;
 }
 
+/* left/top kommen als Lane-Versatz per Inline-Style (rechteckStil()) –
+   hier nur die feste Quer-Grösse (analog zu height:22px horizontal). */
 .zl-spur-v .zl-balken {
     top: auto;
     height: auto;
-    left: 6px;
-    width: 72px;
-}
-
-.zl-spalte-doppelt .zl-spur-v .zl-balken.zl-verschoben {
-    top: auto;
-    left: 84px;
+    width: 22px;
 }
 
 .zl-spur-v .zl-griff {
@@ -719,8 +701,7 @@ textarea {
 
 .zl-spur-v .zl-balken-vorschau {
     top: auto;
-    left: 6px;
-    width: 72px;
+    width: 22px;
     height: auto;
 }
 
