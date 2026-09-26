@@ -272,15 +272,13 @@ async function kiVorschlaegeLaden() {
 
     try {
 
-        // Bewusst ohne eigenen Content-Type-Header (Standard bleibt
-        // text/plain) und ohne no-cors, damit die JSON-Antwort hier
-        // wirklich gelesen werden kann - Apps-Script-Web-Apps
-        // beantworten solche "einfachen" Cross-Origin-POSTs anstandslos
-        // (siehe auch das GET in inventar/app.js).
-        const antwort = await fetch(INVENTAR_APPS_SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ aktion: "menuvorschlaege" })
-        });
+        // Bewusst GET statt POST: bei POST an eine Apps-Script-Web-App
+        // liefert das automatische Redirect-Folgen (macht fetch() von
+        // sich aus) zuverlässig einen kaputten 405 zurück - ein
+        // altbekanntes Google-Apps-Script-Verhalten. GET funktioniert
+        // nachweislich (siehe auch der bestehende Aufruf in
+        // inventar/app.js), deshalb hier als Query-Parameter statt Body.
+        const antwort = await fetch(INVENTAR_APPS_SCRIPT_URL + "?aktion=menuvorschlaege");
 
         const ergebnis = await antwort.json();
 

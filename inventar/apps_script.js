@@ -1,4 +1,17 @@
-function doGet() {
+function doGet(e) {
+
+  // Bewusst per GET statt POST: POST-Antworten von Apps-Script-Web-Apps
+  // kommen beim automatischen Redirect-Folgen (macht sowohl fetch() im
+  // Browser als auch curl -L) zuverlässig als kaputter 405 zurück - ein
+  // altbekanntes Google-Apps-Script-Verhalten, unabhängig vom eigenen
+  // Code. GET funktioniert dagegen nachweislich (siehe Rest dieser
+  // Funktion), deshalb hängt sich diese Aktion hier mit dran statt in
+  // doPost().
+  if (e && e.parameter && e.parameter.aktion === "menuvorschlaege") {
+    return ContentService
+      .createTextOutput(JSON.stringify(holeMenuvorschlaege()))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   const sheet =
     SpreadsheetApp
@@ -39,12 +52,6 @@ function doPost(e) {
 
   const payload =
     JSON.parse(e.postData.contents);
-
-  if (payload.aktion === "menuvorschlaege") {
-    return ContentService
-      .createTextOutput(JSON.stringify(holeMenuvorschlaege()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
 
   const sheet =
     SpreadsheetApp
