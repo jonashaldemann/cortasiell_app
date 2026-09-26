@@ -226,11 +226,20 @@ async function elementHinzufuegen() {
     const maxReihenfolge = alleEintraege.reduce((max, e) => Math.max(max, e.reihenfolge ?? 0), -1);
     const neueId = doc(collection(db, "einkaufsliste")).id;
 
-    await setDoc(doc(db, "einkaufsliste", neueId), {
+    const daten = {
         text,
         erledigt: false,
         reihenfolge: maxReihenfolge + 1
-    });
+    };
+
+    // Ist gerade nach einem Namen gefiltert, gleich mit anpinnen - sonst
+    // würde das neue Element in der gefilterten Ansicht sofort wieder
+    // verschwinden (siehe Feedback).
+    if (aktiverFilterName) {
+        daten.angepinnterName = aktiverFilterName;
+    }
+
+    await setDoc(doc(db, "einkaufsliste", neueId), daten);
 
     feld.value = "";
     feld.focus();
