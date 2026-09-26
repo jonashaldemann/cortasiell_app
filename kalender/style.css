@@ -493,10 +493,6 @@ textarea {
     color: #fff;
 }
 
-.zl-balken-ereignis.zl-projekt-verknuepft {
-    cursor: pointer;
-}
-
 .zl-notiz-marker {
     position: absolute;
     display: flex;

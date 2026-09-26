@@ -550,14 +550,20 @@ async function ereignisFuerProjektSynchronisieren(projektId, titel, startDatum, 
 
         if (startDatum && endDatum) {
 
-            const daten = { titel, vonDatum: startDatum, bisDatum: endDatum, projektId };
+            // merge:true + explizites deleteField(), statt den Kalender-
+            // Eintrag komplett zu überschreiben - sonst würde z.B. ein vom
+            // Kalender aus verschobener Balken beim nächsten Projekt-Speichern
+            // wieder auf den (dann veralteten) Formular-Stand zurückgesetzt.
+            const daten = {
+                titel,
+                vonDatum: startDatum,
+                bisDatum: endDatum,
+                projektId,
+                verschiebeVon: verschiebeStart && verschiebeEnde ? verschiebeStart : deleteField(),
+                verschiebeBis: verschiebeStart && verschiebeEnde ? verschiebeEnde : deleteField()
+            };
 
-            if (verschiebeStart && verschiebeEnde) {
-                daten.verschiebeVon = verschiebeStart;
-                daten.verschiebeBis = verschiebeEnde;
-            }
-
-            await setDoc(ereignisRef, daten);
+            await setDoc(ereignisRef, daten, { merge: true });
 
         } else {
 
