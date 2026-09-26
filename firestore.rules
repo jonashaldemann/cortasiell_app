@@ -16,12 +16,13 @@ service cloud.firestore {
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
           ['titel', 'beschreibung', 'verantwortlich', 'anzahlPersonen', 'dauerTage', 'checkliste',
-           'kosten', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName', 'erstelltAm',
-           'startDatum', 'endDatum', 'geloescht', 'verschiebeStart', 'verschiebeEnde'])
+           'kosten', 'kostenpositionen', 'status', 'reihenfolge', 'dateiUrl', 'dateiId', 'dateiName',
+           'erstelltAm', 'startDatum', 'endDatum', 'geloescht', 'verschiebeStart', 'verschiebeEnde'])
         && request.resource.data.titel is string
         && request.resource.data.titel.size() <= 200
         && request.resource.data.reihenfolge is number
-        && request.resource.data.get('checkliste', []) is list;
+        && request.resource.data.get('checkliste', []) is list
+        && request.resource.data.get('kostenpositionen', []) is list;
     }
 
     match /ereignisse/{ereignisId} {

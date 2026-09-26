@@ -34,6 +34,7 @@ let statusOptionen = STANDARD_STATUS.slice(); // [{ name, farbe }]
 
 let bearbeitetesProjektId = null; // null = neues Projekt wird angelegt
 let checklisteEntwurf = [];
+let kostenEntwurf = []; // [{ _uid, position, anzahl, chfProAnzahl, chfTotal }], Arbeitskopie im Editor
 let ausgewaehlteDatei = null;
 let dateiEntfernen = false;
 
@@ -44,6 +45,10 @@ let dropErfolgreich = false;
 
 let statusZiehElement = null;
 let statusDropErfolgreich = false;
+
+let kostenUidZaehler = 0;
+let kostenZiehElement = null;
+let kostenDropErfolgreich = false;
 
 // Ältere Daten hatten `optionen` als reines String-Array – hier auf das
 // neue { name, farbe }-Format anheben, damit bestehende Status (z.B. ein
@@ -350,6 +355,7 @@ function neuesProjekt() {
 
     bearbeitetesProjektId = null;
     checklisteEntwurf = [];
+    kostenEntwurf = [];
     ausgewaehlteDatei = null;
     dateiEntfernen = false;
 
@@ -359,7 +365,6 @@ function neuesProjekt() {
     document.getElementById("inputVerantwortlich").value = "";
     document.getElementById("inputAnzahlPersonen").value = "";
     document.getElementById("inputDauerTage").value = "";
-    document.getElementById("inputKosten").value = "";
     document.getElementById("inputStartDatum").value = "";
     document.getElementById("inputEndDatum").value = "";
     document.getElementById("inputVerschiebeStart").value = "";
@@ -368,6 +373,7 @@ function neuesProjekt() {
 
     renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]?.name);
     renderChecklisteEditor();
+    renderKostenEditor();
     renderDateiAnzeige(null);
 
     document.getElementById("editorOverlay").classList.remove("hidden");
@@ -383,6 +389,7 @@ function projektBearbeiten(id) {
 
     bearbeitetesProjektId = id;
     checklisteEntwurf = (projekt.checkliste || []).map(p => ({ ...p }));
+    kostenEntwurf = (projekt.kostenpositionen || []).map(p => ({ ...p, _uid: neueKostenUid() }));
     ausgewaehlteDatei = null;
     dateiEntfernen = false;
 
@@ -392,7 +399,6 @@ function projektBearbeiten(id) {
     document.getElementById("inputVerantwortlich").value = projekt.verantwortlich || "";
     document.getElementById("inputAnzahlPersonen").value = projekt.anzahlPersonen ?? "";
     document.getElementById("inputDauerTage").value = projekt.dauerTage ?? "";
-    document.getElementById("inputKosten").value = projekt.kosten ?? "";
     document.getElementById("inputStartDatum").value = projekt.startDatum || "";
     document.getElementById("inputEndDatum").value = projekt.endDatum || "";
     document.getElementById("inputVerschiebeStart").value = projekt.verschiebeStart || "";
@@ -401,6 +407,7 @@ function projektBearbeiten(id) {
 
     renderStatusSelect(document.getElementById("inputStatus"), projekt.status);
     renderChecklisteEditor();
+    renderKostenEditor();
     renderDateiAnzeige(projekt);
 
     document.getElementById("editorOverlay").classList.remove("hidden");
@@ -437,6 +444,194 @@ function checklistePunktGeaendert(index, feld, wert) {
 function checklistePunktEntfernen(index) {
     checklisteEntwurf.splice(index, 1);
     renderChecklisteEditor();
+}
+
+// --- Kosten-Positionen ---
+
+function neueKostenUid() {
+    return "k" + (kostenUidZaehler++);
+}
+
+// Effektives Total einer Zeile: bei gesetzter Anzahl berechnet
+// (Anzahl x CHF pro Anzahl), sonst der manuell eingetragene Totalwert
+// (z.B. für Pauschalpositionen ohne saubere Stückzahl).
+function kostenpositionZeileTotal(pos) {
+
+    const anzahl = Number(pos.anzahl) || 0;
+
+    if (anzahl > 0) {
+        return anzahl * (Number(pos.chfProAnzahl) || 0);
+    }
+
+    return Number(pos.chfTotal) || 0;
+
+}
+
+function kostenGesamtTotal() {
+    return kostenEntwurf.reduce((summe, pos) => summe + kostenpositionZeileTotal(pos), 0);
+}
+
+function kostenTotalAnzeigeAktualisieren() {
+    document.getElementById("kostenTotalAnzeige").textContent = formatChf(kostenGesamtTotal());
+}
+
+function renderKostenEditor() {
+
+    document.getElementById("kostenListe").innerHTML = kostenEntwurf.map(pos => {
+
+        const hatAnzahl = Number(pos.anzahl) > 0;
+        const total = kostenpositionZeileTotal(pos);
+
+        return `
+            <div class="kosten-zeile"
+                draggable="true"
+                data-uid="${pos._uid}"
+                ondragstart="window.kostenDragStart(event)"
+                ondragover="window.kostenDragOver(event)"
+                ondrop="window.kostenDragDrop(event)"
+                ondragend="window.kostenDragEnd(event)"
+            >
+                <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
+                <input type="text" value="${escapeHtml(pos.position)}" placeholder="Position" oninput="window.kostenpositionGeaendert('${pos._uid}', 'position', this.value)">
+                <input type="number" class="kosten-anzahl" min="0" step="1" value="${pos.anzahl ?? ""}" placeholder="–" oninput="window.kostenpositionGeaendert('${pos._uid}', 'anzahl', this.value)">
+                <input type="number" class="kosten-preis" min="0" step="0.05" value="${pos.chfProAnzahl ?? ""}" placeholder="–" ${hatAnzahl ? "" : "disabled"} oninput="window.kostenpositionGeaendert('${pos._uid}', 'chfProAnzahl', this.value)">
+                <input type="number" class="kosten-total" min="0" step="0.05" value="${hatAnzahl ? total : (pos.chfTotal ?? "")}" placeholder="–" ${hatAnzahl ? "disabled" : ""} oninput="window.kostenpositionGeaendert('${pos._uid}', 'chfTotal', this.value)">
+                <button type="button" class="entfernen-button" onclick="window.kostenpositionEntfernen('${pos._uid}')">✕</button>
+            </div>
+        `;
+
+    }).join("");
+
+    kostenTotalAnzeigeAktualisieren();
+
+}
+
+function kostenpositionHinzufuegen() {
+    kostenEntwurf.push({ _uid: neueKostenUid(), position: "", anzahl: "", chfProAnzahl: "", chfTotal: "" });
+    renderKostenEditor();
+    const felder = document.querySelectorAll("#kostenListe .kosten-zeile input[type=text]");
+    felder[felder.length - 1]?.focus();
+}
+
+// Bewusst KEIN volles Re-Render bei jedem Tastendruck (würde den Fokus
+// aus dem gerade getippten Feld werfen, siehe Kalender-Feedback zu einem
+// ähnlichen Problem) – nur wenn sich Anzahl/Preis ändern, muss die
+// Total-Spalte derselben Zeile live nachgeführt werden.
+function kostenpositionGeaendert(uid, feld, wert) {
+
+    const pos = kostenEntwurf.find(p => p._uid === uid);
+
+    if (!pos) {
+        return;
+    }
+
+    pos[feld] = wert;
+
+    if (feld === "position") {
+        return; // reine Beschriftung, wirkt sich auf keine andere Anzeige aus
+    }
+
+    if (feld === "chfTotal") {
+        kostenTotalAnzeigeAktualisieren(); // manuelles Total dieser Zeile fliesst nur ins Gesamt-Total ein
+        return;
+    }
+
+    kostenZeileAktualisieren(uid); // aktualisiert die Zeile selbst UND (über kostenTotalAnzeigeAktualisieren) das Gesamt-Total
+
+}
+
+function kostenZeileAktualisieren(uid) {
+
+    const pos = kostenEntwurf.find(p => p._uid === uid);
+    const zeile = document.querySelector(`.kosten-zeile[data-uid="${uid}"]`);
+
+    if (!pos || !zeile) {
+        return;
+    }
+
+    const hatAnzahl = Number(pos.anzahl) > 0;
+    const preisFeld = zeile.querySelector(".kosten-preis");
+    const totalFeld = zeile.querySelector(".kosten-total");
+
+    preisFeld.disabled = !hatAnzahl;
+    totalFeld.disabled = hatAnzahl;
+
+    if (hatAnzahl) {
+        totalFeld.value = kostenpositionZeileTotal(pos);
+    }
+
+    kostenTotalAnzeigeAktualisieren();
+
+}
+
+function kostenpositionEntfernen(uid) {
+    kostenEntwurf = kostenEntwurf.filter(p => p._uid !== uid);
+    renderKostenEditor();
+}
+
+// Gleiche Live-Verschiebe-Technik wie bei den Projekte-Karten/der
+// Status-Liste (siehe dragStart/dragOver dort).
+function kostenZeilenElemente() {
+    return [...document.querySelectorAll("#kostenListe .kosten-zeile")];
+}
+
+function kostenDragStart(event) {
+    kostenZiehElement = event.currentTarget;
+    kostenDropErfolgreich = false;
+    event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("dragging");
+}
+
+function kostenDragOver(event) {
+
+    event.preventDefault();
+
+    if (!kostenZiehElement) {
+        return;
+    }
+
+    const zielEl = event.currentTarget;
+    if (zielEl === kostenZiehElement) {
+        return;
+    }
+
+    const rect = zielEl.getBoundingClientRect();
+    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
+
+    if (nachUnten) {
+        zielEl.after(kostenZiehElement);
+    } else {
+        zielEl.before(kostenZiehElement);
+    }
+
+}
+
+function kostenDragDrop(event) {
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!kostenZiehElement) {
+        return;
+    }
+
+    kostenDropErfolgreich = true;
+
+    const neueReihenfolge = kostenZeilenElemente().map(el => el.dataset.uid);
+    kostenEntwurf.sort((a, b) => neueReihenfolge.indexOf(a._uid) - neueReihenfolge.indexOf(b._uid));
+
+}
+
+function kostenDragEnd(event) {
+
+    event.currentTarget.classList.remove("dragging");
+
+    if (!kostenDropErfolgreich && kostenZiehElement) {
+        renderKostenEditor(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
+    }
+
+    kostenZiehElement = null;
+
 }
 
 function renderDateiAnzeige(projekt) {
@@ -495,7 +690,10 @@ async function projektSpeichern() {
         verantwortlich: document.getElementById("inputVerantwortlich").value.trim(),
         anzahlPersonen: Number(document.getElementById("inputAnzahlPersonen").value) || 0,
         dauerTage: Number(document.getElementById("inputDauerTage").value) || 0,
-        kosten: Number(document.getElementById("inputKosten").value) || 0,
+        kosten: kostenGesamtTotal(),
+        kostenpositionen: kostenEntwurf
+            .filter(p => p.position.trim() !== "")
+            .map(({ _uid, ...rest }) => rest),
         status: document.getElementById("inputStatus").value,
         checkliste: checklisteEntwurf.filter(p => p.text.trim() !== ""),
         startDatum: startDatum || deleteField(),
@@ -804,6 +1002,13 @@ window.schliesseEditor = schliesseEditor;
 window.checklistePunktHinzufuegen = checklistePunktHinzufuegen;
 window.checklistePunktGeaendert = checklistePunktGeaendert;
 window.checklistePunktEntfernen = checklistePunktEntfernen;
+window.kostenpositionHinzufuegen = kostenpositionHinzufuegen;
+window.kostenpositionGeaendert = kostenpositionGeaendert;
+window.kostenpositionEntfernen = kostenpositionEntfernen;
+window.kostenDragStart = kostenDragStart;
+window.kostenDragOver = kostenDragOver;
+window.kostenDragDrop = kostenDragDrop;
+window.kostenDragEnd = kostenDragEnd;
 window.dateiEntfernenKlick = dateiEntfernenKlick;
 window.projektSpeichern = projektSpeichern;
 window.projektLoeschen = projektLoeschen;
