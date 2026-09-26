@@ -1173,11 +1173,10 @@ async function balkenAendernSpeichern(balkenEl, neuStart, neuEnd) {
         // hier verschobenen/verlängerten Balken wieder zurücksetzen.
         const projektId = ereignisse.find(e => e.id === balkenEl.dataset.id)?.projektId;
 
-        if (projektId) {
-            const projektDaten = istHaupt
-                ? { startDatum: vonId, endDatum: bisId }
-                : { verschiebeStart: vonId, verschiebeEnde: bisId };
-            await setDoc(doc(db, "projekte", projektId), projektDaten, { merge: true });
+        if (projektId && istHaupt) {
+            await setDoc(doc(db, "projekte", projektId), { startDatum: vonId, endDatum: bisId }, { merge: true });
+        } else if (projektId) {
+            await projektVerschiebedatumSynchronisieren(balkenEl.dataset.id, vonId, bisId);
         }
 
     } else if (typ === "notiz") {
@@ -1335,19 +1334,13 @@ function renderVerschiebeAnzeige(ereignis) {
     const el = document.getElementById("ereignisVerschiebeAnzeige");
 
     if (!ereignis.verschiebeVon || !ereignis.verschiebeBis) {
-        el.innerHTML = ereignis.projektId
-            ? ""
-            : `<button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>`;
+        el.innerHTML = `<button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>`;
         return;
     }
 
-    const entfernenBtn = ereignis.projektId
-        ? ""
-        : `<button type="button" class="abbrechen-button" onclick="window.verschiebedatumEntfernen()">Entfernen</button>`;
-
     el.innerHTML = `
         <p class="hinweis-text">Verschoben auf: ${formatZeitraum(ereignis.verschiebeVon, ereignis.verschiebeBis)}</p>
-        ${entfernenBtn}
+        <button type="button" class="abbrechen-button" onclick="window.verschiebedatumEntfernen()">Entfernen</button>
     `;
 
 }
@@ -1498,11 +1491,19 @@ function zeichenHinweisVerbergen() {
 
 async function verschiebedatumZeichnenStarten() {
 
-    const titel = document.getElementById("ereignisTitelFeld").value.trim();
-    const id = await ereignisGrunddatenSpeichernOhneSchliessen();
+    // Projekt-Ereignisse existieren immer schon (deterministische ID) und
+    // dürfen NICHT über ereignisGrunddatenSpeichernOhneSchliessen()
+    // laufen - die setzt projektId:null und würde die Projekt-Verknüpfung
+    // kappen. Für sie reicht die vorhandene ID.
+    const bestehendesEreignis = ereignisse.find(e => e.id === bearbeitetesEreignisId);
+    let id = bestehendesEreignis?.projektId ? bestehendesEreignis.id : null;
+    const titel = bestehendesEreignis?.titel || document.getElementById("ereignisTitelFeld").value.trim();
 
     if (!id) {
-        return;
+        id = await ereignisGrunddatenSpeichernOhneSchliessen();
+        if (!id) {
+            return;
+        }
     }
 
     schliesseEreignisOverlay();
@@ -1516,6 +1517,19 @@ function verschiebedatumZeichnenAbbrechen() {
     ereignisVerschiebeZeichnenId = null;
     zeichenHinweisVerbergen();
     render();
+}
+
+// Bei Projekt-Ereignissen zusätzlich das Projekt-Dokument selbst
+// nachführen (siehe balkenAendernSpeichern) – sonst würde ein erneutes
+// Speichern des Projekts diese Änderung wieder zurücksetzen.
+async function projektVerschiebedatumSynchronisieren(ereignisId, verschiebeStart, verschiebeEnde) {
+
+    const projektId = ereignisse.find(e => e.id === ereignisId)?.projektId;
+
+    if (projektId) {
+        await setDoc(doc(db, "projekte", projektId), { verschiebeStart, verschiebeEnde }, { merge: true });
+    }
+
 }
 
 async function verschiebedatumEntfernen() {
@@ -1533,6 +1547,8 @@ async function verschiebedatumEntfernen() {
         verschiebeBis: deleteField()
     }, { merge: true });
 
+    await projektVerschiebedatumSynchronisieren(bearbeitetesEreignisId, deleteField(), deleteField());
+
     schliesseEreignisOverlay();
 
 }
@@ -1548,6 +1564,7 @@ async function verschiebedatumUebernehmen(vonId, bisId) {
     }
 
     await setDoc(doc(db, "ereignisse", id), { verschiebeVon: vonId, verschiebeBis: bisId }, { merge: true });
+    await projektVerschiebedatumSynchronisieren(id, vonId, bisId);
     render();
 
 }
