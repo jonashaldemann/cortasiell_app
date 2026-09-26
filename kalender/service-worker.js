@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-kalender-v5";
+const CACHE_NAME = "cortasiell-kalender-v6";
 
 const FILES_TO_CACHE = [
     "./",
@@ -55,11 +55,14 @@ self.addEventListener("fetch", event => {
 
     // Netzwerk zuerst, damit ein frischer Deploy sofort ankommt – nur bei
     // Offline/Netzwerkfehler auf den zuletzt bekannten Stand aus dem Cache
-    // zurückgreifen. Löst das "Refresh zeigt trotzdem die alte Version"-
-    // Problem der vorherigen Cache-zuerst-Strategie.
+    // zurückgreifen. cache:"reload" ist wichtig: ohne das darf der Browser
+    // diese fetch()-Anfrage selbst aus seinem eigenen HTTP-Cache
+    // beantworten (nicht dem hier verwalteten Cache Storage) - "Netzwerk
+    // zuerst" wäre dann nur Theater, es kam nie wirklich neu vom Server,
+    // und nur "alle Cookies/Website-Daten löschen" hat geholfen.
     event.respondWith(
 
-        fetch(event.request)
+        fetch(event.request, { cache: "reload" })
             .then(antwort => {
 
                 const kopie = antwort.clone();
