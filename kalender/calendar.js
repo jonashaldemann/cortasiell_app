@@ -557,7 +557,7 @@ function rechteckStil(startIdx, endIdx, lane = 0) {
     // an die Montags-Linie und sieht so aus, als würde er in den Montag
     // hineinreichen (siehe Feedback). Reine Optik, ändert nichts an den
     // gespeicherten Tagen.
-    const RAND = Math.min(2, zellGroesse * 0.15);
+    const RAND = Math.min(4, zellGroesse * 0.25);
     const start = startIdx * zellGroesse + RAND;
     const laenge = (endIdx - startIdx + 1) * zellGroesse - RAND * 2;
     const quer = 6 + lane * LANE_PITCH; // Versatz quer zur Datumsachse (gestapelte Lanes)
@@ -606,7 +606,8 @@ function personBalkenHtml(item) {
     return `
         <div class="zl-balken zl-balken-person" data-balken data-typ="person"
             data-name="${escapeHtml(item.name)}" data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"
-            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
+            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}"
+            title="${escapeHtml(item.name)}: ${escapeHtml(formatZeitraum(vonId, bisId))}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${escapeHtml(item.name)}</span>
             <span class="zl-griff" data-griff="ende"></span>
@@ -628,7 +629,8 @@ function ereignisBalkenHtml(item) {
         <div class="zl-balken zl-balken-ereignis${projektKlasse}${verschobenKlasse}" data-balken data-typ="ereignis"
             data-id="${ereignis.id}" data-segment="${item.istVerschoben ? "verschoben" : "haupt"}"
             data-von-id="${vonId}" data-bis-id="${bisId}" data-lane="${item.lane}"
-            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}">
+            style="${rechteckStil(item.startIdx, item.endIdx, item.lane)}"
+            title="${escapeHtml(ereignis.titel)}: ${escapeHtml(formatZeitraum(vonId, bisId))}">
             <span class="zl-griff" data-griff="start"></span>
             <span class="zl-balken-titel">${praefix}${escapeHtml(ereignis.titel)}</span>
             <span class="zl-griff" data-griff="ende"></span>
