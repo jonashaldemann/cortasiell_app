@@ -249,13 +249,33 @@ function holeMenuvorschlaege() {
      body.candidates[0].content.parts && body.candidates[0].content.parts[0] &&
      body.candidates[0].content.parts[0].text) || "[]";
 
+  let rezepte;
+
   try {
-    return { rezepte: JSON.parse(text) };
+    rezepte = JSON.parse(text);
   } catch (fehler) {
     // Falls das Modell doch nicht sauberes JSON liefert, Rohtext
     // trotzdem anzeigen statt nur einen Fehler zu werfen.
     return { rezepte: [{ titel: "Antwort konnte nicht als JSON gelesen werden", zubereitung: text, zusatzZutaten: [] }] };
   }
+
+  if (!Array.isArray(rezepte) || rezepte.length === 0) {
+
+    // Leere Antwort ohne erkennbaren Fehlercode - lieber Rohtext +
+    // finishReason als Fehlermeldung zurückgeben, damit das direkt im
+    // Menüplan-Overlay sichtbar ist statt nur ein stummes "keine
+    // Vorschläge" (spart eine weitere Runde über den Skript-Editor).
+    const finishReason = body.candidates && body.candidates[0] && body.candidates[0].finishReason;
+
+    return {
+      fehler: "Leere/unerwartete Antwort von Gemini (finishReason: " + finishReason +
+        "). Rohtext: " + text.slice(0, 300) +
+        " - meist ein einmaliger Ausrutscher, bitte nochmal versuchen."
+    };
+
+  }
+
+  return { rezepte };
 
 }
 
