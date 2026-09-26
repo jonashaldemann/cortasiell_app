@@ -45,6 +45,18 @@
         mindestens eine Person da ist.
     </p>
 
+    <button class="ki-vorschlaege-button" onclick="window.kiVorschlaegeOeffnen()">🍳 KI-Menüvorschläge aus dem Vorrat</button>
+
+    <div id="kiVorschlaegeOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2>Menüvorschläge aus dem Vorrat</h2>
+                <button class="icon-btn" onclick="window.kiVorschlaegeSchliessen()">✕</button>
+            </div>
+            <div id="kiVorschlaegeInhalt"></div>
+        </div>
+    </div>
+
     <div id="tageListe" class="menuplan-liste">
         <p class="hinweis-text">Lädt…</p>
     </div>

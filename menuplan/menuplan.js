@@ -14,6 +14,13 @@ import {
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const STICKY_NAME_KEY = "cortasiell_menuplan_zustaendigkeit";
 
+// Gleiches Apps-Script-Deployment wie im Inventar-Modul (siehe
+// inventar/app.js) - hat direkten Zugriff aufs Inventar-Sheet und ruft
+// von dort aus die Anthropic-API auf (Key liegt serverseitig in den
+// Script-Properties, nie im Client-Code).
+const INVENTAR_APPS_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbzosmOtgS7rsXidxsoRodPDiJzAt6CBSEFeLkMZUBTK10O3r6v10t1E9Qfn4DlMF9Na_g/exec";
+
 const heute = new Date();
 
 let tageDaten = {}; // aus dem Kalender: "YYYY-MM-DD" -> { personen, aktivitaet }
@@ -226,6 +233,79 @@ async function schnellHinzufuegen() {
     itemFeld.focus();
 
 }
+
+// --- KI-Menüvorschläge aus dem Inventar ---
+
+function kiVorschlaegeOeffnen() {
+
+    document.getElementById("kiVorschlaegeOverlay").classList.remove("hidden");
+    document.getElementById("kiVorschlaegeInhalt").innerHTML =
+        `<p class="hinweis-text">Lädt Vorschläge aus dem Vorrat …</p>`;
+
+    kiVorschlaegeLaden();
+
+}
+
+function kiVorschlaegeSchliessen() {
+    document.getElementById("kiVorschlaegeOverlay").classList.add("hidden");
+}
+
+function renderRezeptKarte(rezept) {
+
+    const zutaten = Array.isArray(rezept.zusatzZutaten) ? rezept.zusatzZutaten : [];
+
+    return `
+        <div class="rezept-karte">
+            <h3>${escapeHtml(rezept.titel || "Rezept")}</h3>
+            <p>${escapeHtml(rezept.zubereitung || "")}</p>
+            <p class="zusatz-zutaten">
+                ${zutaten.length ? "Zusätzlich benötigt: " + zutaten.map(escapeHtml).join(", ") : "Keine zusätzlichen Zutaten nötig."}
+            </p>
+        </div>
+    `;
+
+}
+
+async function kiVorschlaegeLaden() {
+
+    const box = document.getElementById("kiVorschlaegeInhalt");
+
+    try {
+
+        // Bewusst ohne eigenen Content-Type-Header (Standard bleibt
+        // text/plain) und ohne no-cors, damit die JSON-Antwort hier
+        // wirklich gelesen werden kann - Apps-Script-Web-Apps
+        // beantworten solche "einfachen" Cross-Origin-POSTs anstandslos
+        // (siehe auch das GET in inventar/app.js).
+        const antwort = await fetch(INVENTAR_APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ aktion: "menuvorschlaege" })
+        });
+
+        const ergebnis = await antwort.json();
+
+        if (ergebnis.fehler) {
+            box.innerHTML = `<p class="hinweis-text">⚠️ ${escapeHtml(ergebnis.fehler)}</p>`;
+            return;
+        }
+
+        const rezepte = ergebnis.rezepte || [];
+
+        box.innerHTML = rezepte.length
+            ? rezepte.map(renderRezeptKarte).join("")
+            : `<p class="hinweis-text">Keine Vorschläge erhalten.</p>`;
+
+    } catch (fehler) {
+
+        console.error("Menüvorschläge konnten nicht geladen werden:", fehler);
+        box.innerHTML = `<p class="hinweis-text">⚠️ Vorschläge konnten nicht geladen werden. Bitte Internetverbindung prüfen.</p>`;
+
+    }
+
+}
+
+window.kiVorschlaegeOeffnen = kiVorschlaegeOeffnen;
+window.kiVorschlaegeSchliessen = kiVorschlaegeSchliessen;
 
 window.feldFokus = feldFokus;
 function hilfeOeffnen() {

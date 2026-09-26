@@ -113,6 +113,50 @@ h1 {
     min-height: 44px;
 }
 
+.ki-vorschlaege-button {
+    max-width: min(1400px, 96vw);
+    margin: 0 auto 16px;
+    width: 100%;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px dashed var(--border);
+    font-family: var(--font-medium);
+}
+
+.ki-vorschlaege-button:hover {
+    background: var(--surface-2);
+}
+
+.rezept-karte {
+    background: var(--surface-2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.rezept-karte:last-child {
+    margin-bottom: 0;
+}
+
+.rezept-karte h3 {
+    font-family: var(--font-medium);
+    font-size: 1rem;
+    margin: 0 0 6px;
+    color: var(--text);
+}
+
+.rezept-karte p {
+    font-size: 0.9rem;
+    margin: 0 0 6px;
+    color: var(--text);
+}
+
+.rezept-karte .zusatz-zutaten {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
 .schnell-einkauf {
     max-width: min(1400px, 96vw);
     margin: 0 auto;
