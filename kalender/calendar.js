@@ -175,10 +175,6 @@ function formatZeitraum(vonId, bisId) {
     return vonId === bisId ? formatDatumLang(vonId) : `${formatDatumKurz(vonId)} – ${formatDatumLang(bisId)}`;
 }
 
-function kuerzeText(text, maxLen) {
-    return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
-}
-
 // Osterdatum nach dem gaußschen Osteralgorithmus (Meeus/Jones/Butcher) –
 // daraus lassen sich alle beweglichen Feiertage (Karfreitag, Auffahrt,
 // Pfingsten, ...) für jedes beliebige Jahr herleiten.
@@ -449,7 +445,7 @@ function tagesnotizenListe() {
 // Texte tatsächlich überlagern würden (und ein späterer Eintrag wieder in
 // eine frei gewordene Lane rutscht, sobald der Text davor "fertig" ist).
 function notizFussabdruckTage(text) {
-    const px = NOTIZ_MARKER_BREITE + kuerzeText(text, 24).length * NOTIZ_ZEICHEN_BREITE;
+    const px = NOTIZ_MARKER_BREITE + text.length * NOTIZ_ZEICHEN_BREITE;
     return Math.max(1, Math.ceil(px / zellGroesse));
 }
 
@@ -644,7 +640,7 @@ function notizMarkerHtml(item) {
         <div class="zl-notiz-marker" data-balken data-typ="notiz" data-id="${item.id}" data-lane="${item.lane}"
             style="${punktStil(item.idx, item.lane)}" title="${escapeHtml(item.text)}">
             <span class="zl-notiz-punkt"></span>
-            <span class="zl-notiz-label">${escapeHtml(kuerzeText(item.text, 24))}</span>
+            <span class="zl-notiz-label">${escapeHtml(item.text)}</span>
         </div>
     `;
 
