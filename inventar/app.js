@@ -306,8 +306,23 @@ function zeigeFrage() {
 
             zeigeUnveraendert = true;
 
+        } else if (/^Minimum\s+\d/i.test(typ)) {
+
+            // Spalte C steht jetzt z.B. "Minimum 1" oder "Minimum 20" statt
+            // einer nackten Zahl, damit im Sheet selbst klar ist, was die
+            // Zahl bedeutet.
+            const minimumWert =
+                typ.replace(/^Minimum\s+/i, "").trim();
+
+            frageText =
+                `Mindestens ${minimumWert} ${frage.einheit} ${produktSpan} vorhanden?`;
+
+            zeigeUnveraendert = true;
+
         } else if (!isNaN(Number(typ))) {
 
+            // Rückwärtskompatibel: ältere Zeilen, die noch eine nackte Zahl
+            // statt "Minimum N" in Spalte C haben.
             frageText =
                 `Mindestens ${typ} ${frage.einheit} ${produktSpan} vorhanden?`;
 
