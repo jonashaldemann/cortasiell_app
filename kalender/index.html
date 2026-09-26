@@ -29,17 +29,22 @@
             </a>
         </div>
 
-        <div class="kalender-layout">
-
-            <div class="kalender-hauptspalte">
-                <div id="ansichtUmschalter"></div>
-                <div id="monatsNavigation"></div>
-                <div id="kalenderGrid"></div>
+        <div class="zl-symbolleiste">
+            <button class="heute-button" onclick="window.heuteAnzeigen()">Heute</button>
+            <button class="ereignis-button" onclick="window.neuesEreignis()">+ Ereignis</button>
+            <button class="ereignis-button" onclick="window.neuePersonButton()">+ Person</button>
+            <div class="zl-zoom-gruppe">
+                <span class="zl-zoom-label">🔍</span>
+                <input type="range" id="zlZoomSchieber">
             </div>
-
-            <div id="auswahlLeiste" class="kalender-seitenpanel"></div>
-
         </div>
+
+        <div id="zlZeichenHinweis" class="zl-zeichen-hinweis hidden">
+            <span id="zlZeichenHinweisText"></span>
+            <button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenAbbrechen()">Abbrechen</button>
+        </div>
+
+        <div class="zl-scroll" id="zlScroll"></div>
 
     </div>
 
@@ -50,19 +55,29 @@
                 <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
             </div>
             <p>
-                Tippe auf einen oder mehrere Tage, um dich (oder andere)
-                einzutragen. Mit Shift+Klick wählst du gleich einen ganzen
-                Zeitraum aus. Unten kannst du Namen hinzufügen/entfernen und
-                eine Aktivität für die ausgewählten Tage eintragen.
+                Die Zeitleiste zeigt immer heute bis in einem Jahr – im Browser
+                horizontal, auf dem Handy vertikal.
                 <br><br>
-                Über "+ Ereignis" legst du ein- oder mehrtägige Ereignisse
-                an, die sich grafisch über mehrere Tage ziehen. Ein Projekt
-                mit Start-/Enddatum taucht automatisch (nur lesend) als
-                Ereignis im Kalender auf.
+                <b>Personen:</b> Auf der leeren Fläche einer Personenzeile
+                ziehen legt einen neuen Zeitraum an; bei "+ Person" kannst du
+                gleich mehrere Namen mit Komma getrennt eingeben (z.B.
+                "Alfred, Mimi, Anna") – für jeden Namen entsteht ein eigener
+                Balken. Einen bestehenden Balken kannst du verschieben, an den
+                Enden ziehen oder anklicken zum Bearbeiten/Löschen.
                 <br><br>
-                Ist ein Termin evtl. verschoben, trag zusätzlich ein
-                Verschiebedatum ein: Es erscheint als zweiter Balken in
-                hellerer Farbe, neben dem ursprünglichen Termin.
+                <b>Ereignisse &amp; Projekte:</b> "+ Ereignis" legt ein- oder
+                mehrtägige Ereignisse an. Ein Projekt mit Start-/Enddatum
+                erscheint automatisch (nur lesend, 📎) im Kalender. Ist ein
+                Termin evtl. verschoben, öffne das Ereignis und wähle
+                "Verschiebedatum zeichnen…" – anschliessend den zweiten Balken
+                direkt in derselben Zeile einzeichnen. Beide Balken bleiben
+                zusammengehörend, lassen sich aber unabhängig verschieben.
+                <br><br>
+                <b>Tagesnotizen:</b> Auf die Notizzeile klicken trägt eine
+                kurze Notiz für diesen Tag ein (z.B. "Anreise, Heli um 8 Uhr").
+                <br><br>
+                <b>Zoom:</b> Strg/Cmd + Scrollrad (oder Pinch-Geste), oder der
+                Schieberegler oben rechts.
             </p>
         </div>
     </div>
@@ -102,6 +117,50 @@
             </label>
 
             <div id="ereignisAktionen"></div>
+        </div>
+    </div>
+
+    <div id="personOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2 id="personTitelUeberschrift">Person(en) eintragen</h2>
+                <button class="icon-btn" onclick="window.schliessePersonOverlay()">✕</button>
+            </div>
+
+            <label class="aktivitaet-label">
+                Name(n) <span class="hinweis-inline">– bei mehreren mit Komma trennen</span>
+                <input type="text" id="personNameFeld" placeholder="z.B. Alfred, Mimi, Anna">
+            </label>
+
+            <label class="aktivitaet-label">
+                Von
+                <input type="date" id="personVonFeld">
+            </label>
+
+            <label class="aktivitaet-label">
+                Bis
+                <input type="date" id="personBisFeld">
+            </label>
+
+            <div id="personAktionen"></div>
+        </div>
+    </div>
+
+    <div id="notizOverlay" class="overlay hidden">
+        <div class="sheet">
+            <div class="sheet-head">
+                <h2 id="notizTitelUeberschrift">Tagesnotiz</h2>
+                <button class="icon-btn" onclick="window.schliesseNotizOverlay()">✕</button>
+            </div>
+
+            <p class="hinweis-text" id="notizDatumAnzeige"></p>
+
+            <label class="aktivitaet-label">
+                Notiz
+                <textarea id="notizTextFeld" rows="3" placeholder="z.B. Anreise, Heli um 8 Uhr"></textarea>
+            </label>
+
+            <div id="notizAktionen"></div>
         </div>
     </div>
 

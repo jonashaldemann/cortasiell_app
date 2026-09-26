@@ -21,16 +21,6 @@ body {
     padding: 20px;
 }
 
-.kalender-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.kalender-seitenpanel:empty {
-    display: none;
-}
-
 .kopfzeile {
     display: flex;
     align-items: center;
@@ -44,471 +34,6 @@ h1 {
     color: var(--text);
     margin: 0;
     flex: 1;
-}
-
-.ansicht-zeile {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: stretch;
-    margin-bottom: 14px;
-}
-
-.ansicht-umschalter {
-    display: flex;
-    gap: 6px;
-    flex: 1;
-    background: var(--surface-2);
-    border-radius: 10px;
-    padding: 4px;
-}
-
-.heute-button {
-    width: auto;
-    flex: none;
-    margin-top: 0;
-    padding: 8px 14px;
-    min-height: auto;
-    font-size: 0.9rem;
-    background: var(--akzent-reserve);
-}
-
-.heute-button:hover {
-    background: var(--akzent-reserve-dunkel);
-}
-
-.ereignis-button {
-    width: auto;
-    flex: none;
-    margin-top: 0;
-    padding: 8px 14px;
-    min-height: auto;
-    font-size: 0.9rem;
-    background: var(--akzent-ereignis);
-}
-
-.ereignis-button:hover {
-    background: var(--akzent-ereignis-dunkel);
-}
-
-.umschalt-button {
-    flex: 1;
-    width: auto;
-    margin-top: 0;
-    padding: 8px;
-    min-height: auto;
-    border-radius: 8px;
-    background: none;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-.umschalt-button:hover {
-    background: none;
-    color: var(--text);
-}
-
-.umschalt-button.aktiv {
-    background: var(--surface);
-    color: var(--text);
-}
-
-#monatsNavigation {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 12px;
-}
-
-.nav-button {
-    background: var(--akzent-kalender);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
-    font-size: 1.1rem;
-    cursor: pointer;
-}
-
-.nav-button:hover {
-    background: var(--akzent-kalender-dunkel);
-}
-
-.zeitraum-titel {
-    font-family: var(--font-medium);
-    font-size: 1.05rem;
-    min-width: 140px;
-    text-align: center;
-}
-
-.wochentage-reihe,
-.monat-woche {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-}
-
-.monat-wochen-liste {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.wochentag {
-    text-align: center;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    padding-bottom: 4px;
-}
-
-.tag-zelle {
-    min-height: 64px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 4px;
-    cursor: pointer;
-    overflow: hidden;
-}
-
-.tag-zelle:hover {
-    background: var(--surface-2);
-}
-
-.tag-zelle.leer {
-    border: none;
-    cursor: default;
-}
-
-.tag-zelle.heute {
-    border-color: var(--akzent-kalender);
-    border-width: 2px;
-}
-
-.tag-zelle.feiertag {
-    background: var(--anthrazit-blass);
-}
-
-.tag-zelle.ausgewaehlt {
-    background: var(--rot-blass);
-    border-color: var(--akzent-kalender);
-}
-
-.tag-nummer {
-    font-size: 0.8rem;
-    color: var(--text);
-    font-weight: bold;
-}
-
-.feiertag-label {
-    font-size: 0.55rem;
-    color: var(--akzent-reserve);
-    font-weight: bold;
-    margin-top: 1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.person-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    margin-top: 2px;
-}
-
-.person-chip {
-    background: var(--akzent-kalender);
-    color: white;
-    font-size: 0.6rem;
-    padding: 1px 5px;
-    border-radius: 6px;
-    white-space: nowrap;
-}
-
-.person-chip.mehr {
-    background: var(--text-muted);
-}
-
-.person-chip.datum-chip {
-    background: var(--akzent-reserve);
-    font-size: 0.75rem;
-    padding: 3px 8px;
-}
-
-.tag-aktivitaet {
-    font-size: 0.6rem;
-    color: var(--akzent-kalender);
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ereignis-balken {
-    background: var(--akzent-ereignis);
-    color: white;
-    font-size: 0.6rem;
-    padding: 1px 6px;
-    border-radius: 6px;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
-}
-
-.ereignis-balken:hover {
-    background: var(--akzent-ereignis-dunkel);
-}
-
-.ereignis-balken.projekt-verknuepft::before {
-    content: "📎 ";
-}
-
-.ereignis-balken.verschoben {
-    background: var(--akzent-ereignis-hell);
-    color: var(--text);
-}
-
-.ereignis-balken.verschoben:hover {
-    background: var(--akzent-ereignis);
-    color: #fff;
-}
-
-.ereignis-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    margin-top: 2px;
-}
-
-.ereignis-chip {
-    background: var(--akzent-ereignis);
-    color: white;
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 6px;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-.ereignis-chip:hover {
-    background: var(--akzent-ereignis-dunkel);
-}
-
-.ereignis-chip.projekt-verknuepft::before {
-    content: "📎 ";
-}
-
-.ereignis-chip.verschoben {
-    background: var(--akzent-ereignis-hell);
-    color: var(--text);
-}
-
-.wochen-liste {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.wochen-zeile {
-    display: flex;
-    gap: 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px;
-    cursor: pointer;
-}
-
-.wochen-zeile:hover {
-    background: var(--surface-2);
-}
-
-.wochen-zeile.heute {
-    border-color: var(--akzent-kalender);
-    border-width: 2px;
-}
-
-.wochen-zeile.feiertag {
-    background: var(--anthrazit-blass);
-}
-
-.wochen-zeile.ausgewaehlt {
-    background: var(--rot-blass);
-    border-color: var(--akzent-kalender);
-}
-
-.wochen-datum {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-width: 48px;
-    flex: none;
-}
-
-.wochen-wochentag {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.wochen-tagnummer {
-    font-family: var(--font-medium);
-    font-size: 0.95rem;
-}
-
-.wochen-inhalt {
-    flex: 1;
-    min-width: 0;
-}
-
-.wochen-inhalt .tag-aktivitaet {
-    white-space: normal;
-    font-size: 0.8rem;
-    margin-top: 4px;
-}
-
-.wochen-inhalt .feiertag-label {
-    font-size: 0.7rem;
-    margin-bottom: 3px;
-}
-
-.wochen-leer-hinweis {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.auswahl-panel {
-    border-top: 1px solid var(--border);
-    padding-top: 16px;
-    margin-top: 16px;
-}
-
-.auswahl-panel h2 {
-    font-size: 1.1rem;
-    margin: 0 0 12px;
-}
-
-.ausgewaehlte-tage-chips {
-    margin-bottom: 14px;
-}
-
-.personen-liste {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 12px;
-}
-
-.personen-liste li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 10px;
-    background: var(--surface-2);
-    border-radius: 8px;
-    margin-bottom: 6px;
-    font-size: 0.9rem;
-}
-
-.hinweis-text {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    text-align: center;
-    margin: 0 0 12px;
-}
-
-.entfernen-button {
-    width: auto;
-    background: none;
-    color: var(--text-muted);
-    border: none;
-    padding: 0 4px;
-    margin: 0;
-    min-height: auto;
-    cursor: pointer;
-    font-size: 1rem;
-}
-
-.aktivitaet-label {
-    display: block;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    margin: 12px 0 4px;
-}
-
-.aktivitaet-label input[type="text"],
-.aktivitaet-label input[type="date"] {
-    display: block;
-    width: 100%;
-    margin-top: 4px;
-    padding: 10px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 8px;
-    background: var(--surface-2);
-    color: var(--text);
-    box-sizing: border-box;
-}
-
-.loeschen-button {
-    background: var(--surface);
-    color: var(--rot-dunkel);
-    border: 1px solid var(--border);
-}
-
-.loeschen-button:hover {
-    background: var(--rot-blass);
-}
-
-.ereignis-projekt-link {
-    display: block;
-    text-align: center;
-    text-decoration: none;
-    box-sizing: border-box;
-}
-
-.name-hinzufuegen-reihe {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.name-hinzufuegen-reihe input[type="text"] {
-    flex: 1;
-    min-width: 0;
-    padding: 10px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 8px;
-    background: var(--surface-2);
-    color: var(--text);
-    box-sizing: border-box;
-}
-
-.hinzufuegen-button {
-    width: auto;
-    flex: none;
-    margin-top: 0;
-    padding: 10px 14px;
-    min-height: auto;
-    font-size: 0.9rem;
-}
-
-textarea {
-    width: 100%;
-    padding: 10px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 8px;
-    background: var(--surface-2);
-    color: var(--text);
-    box-sizing: border-box;
-    resize: vertical;
 }
 
 button {
@@ -545,56 +70,669 @@ button:disabled {
     background: var(--surface-2);
 }
 
-/* Browser-Ansicht: breiterer Kalender, damit in der Monatsansicht mehr
-   Namen pro Tag sichtbar sind, ohne dass Zellen in die Höhe wachsen und
-   den Überblick über den Monat stören. Die Chip-Anzahl pro Zelle wird
-   passend dazu in calendar.js über matchMedia gesteuert. */
+.loeschen-button {
+    background: var(--surface);
+    color: var(--rot-dunkel);
+    border: 1px solid var(--border);
+}
+
+.loeschen-button:hover {
+    background: var(--rot-blass);
+}
+
+.ereignis-projekt-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}
+
+.hinweis-text {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    margin: 0 0 12px;
+}
+
+.hinweis-inline {
+    font-size: 0.75rem;
+    font-weight: normal;
+    color: var(--text-muted);
+}
+
+.aktivitaet-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 12px 0 4px;
+}
+
+.aktivitaet-label input[type="text"],
+.aktivitaet-label input[type="date"] {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+/* ============================================================
+   Zeitleiste – "zl-" Präfix. LABEL_GROESSE (130), SPALTEN_BREITE (84)
+   und DATUM_SPALTE_BREITE (56) müssen zu den gleichnamigen Konstanten
+   in calendar.js passen.
+   ============================================================ */
+
+.zl-symbolleiste {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.zl-symbolleiste button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 8px 14px;
+    min-height: auto;
+    font-size: 0.9rem;
+}
+
+.zl-symbolleiste .heute-button {
+    background: var(--akzent-reserve);
+}
+
+.zl-symbolleiste .heute-button:hover {
+    background: var(--akzent-reserve-dunkel);
+}
+
+.zl-symbolleiste .ereignis-button {
+    background: var(--akzent-ereignis);
+}
+
+.zl-symbolleiste .ereignis-button:hover {
+    background: var(--akzent-ereignis-dunkel);
+}
+
+.zl-zoom-gruppe {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.zl-zoom-label {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.zl-zoom-gruppe input[type="range"] {
+    width: 110px;
+}
+
+.hidden {
+    display: none;
+}
+
+.zl-zeichen-hinweis {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--rot-blass);
+    border: 1px solid var(--akzent-kalender);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+}
+
+.zl-zeichen-hinweis button {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 6px 10px;
+    min-height: auto;
+    font-size: 0.8rem;
+}
+
+.zl-scroll {
+    overflow: auto;
+    background: var(--surface-2);
+    border-radius: 14px;
+    height: 65vh;
+    min-height: 360px;
+}
+
+.zl-inner,
+.zl-inner-v {
+    position: relative;
+}
+
+.zl-inner {
+    min-width: max-content;
+}
+
+/* --- Kopfzeile (Monat/Woche/Tag/Feiertag) --- */
+
+.zl-kopf-reihe {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.zl-ecke {
+    flex: 0 0 130px; /* LABEL_GROESSE */
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--surface-2);
+}
+
+.zl-kopf-spuren {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.zl-monat-spur { position: relative; height: 22px; }
+.zl-woche-spur { position: relative; height: 18px; border-top: 1px solid var(--border); }
+.zl-tag-spur { position: relative; height: 16px; border-top: 1px solid var(--border); }
+.zl-feiertag-spur { position: relative; height: 18px; border-top: 1px solid var(--border); }
+
+.zl-monat-strich,
+.zl-woche-strich {
+    position: absolute;
+    top: 4px;
+    bottom: 0;
+    border-left: 1px solid var(--border);
+    padding-left: 4px;
+    white-space: nowrap;
+}
+
+.zl-monat-strich span {
+    font-family: var(--font-medium);
+    font-size: 0.7rem;
+    color: var(--text);
+}
+
+.zl-woche-strich span {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+}
+
+.zl-tag-zahl {
+    position: absolute;
+    top: 1px;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.zl-feiertag-strich {
+    position: absolute;
+    top: 2px;
+    border-left: 2px solid var(--akzent-reserve);
+    padding-left: 3px;
+}
+
+.zl-feiertag-text {
+    font-size: 0.6rem;
+    color: var(--akzent-reserve-dunkel);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* --- Hintergrund-Schicht (Wochenende/Woche-Gitter/Feiertage/Heute) --- */
+
+.zl-koerper {
+    position: relative;
+}
+
+.zl-hintergrund {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.zl-wochenende-streifen {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.zl-woche-gitterlinie {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px solid var(--border);
+    opacity: 0.6;
+}
+
+.zl-feiertag-flaeche {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--anthrazit-blass);
+}
+
+.zl-heute-linie {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: var(--akzent-kalender);
+}
+
+/* --- Abschnitte/Zeilen --- */
+
+.zl-abschnitt-titel {
+    position: relative;
+    z-index: 1;
+    padding: 10px 12px 4px;
+    font-family: var(--font-medium);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--surface-2);
+}
+
+.zl-zeile {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    min-height: 34px;
+    border-bottom: 1px solid var(--border);
+}
+
+.zl-zeile.zl-zeile-doppelt { min-height: 58px; }
+
+.zl-zeile.zl-zeile-zeichnen-aktiv {
+    background: color-mix(in srgb, var(--akzent-ereignis) 12%, transparent);
+}
+
+.zl-label-zelle {
+    flex: 0 0 130px; /* LABEL_GROESSE */
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.zl-hinzufuegen-text,
+.zl-hinweis-mini {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.zl-spur {
+    position: relative;
+    flex: 1;
+}
+
+.zl-spur[data-neu] {
+    cursor: crosshair;
+}
+
+.zl-spur-notizen {
+    min-height: 40px;
+}
+
+/* --- Balken/Marker (gemeinsam für horizontal & vertikal) --- */
+
+.zl-balken-vorschau {
+    position: absolute;
+    top: 6px;
+    height: 22px;
+    background: var(--text-muted);
+    opacity: 0.4;
+    border-radius: 5px;
+    pointer-events: none;
+}
+
+.zl-balken {
+    position: absolute;
+    top: 6px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    color: #fff;
+    cursor: grab;
+    touch-action: none;
+}
+
+.zl-balken:active { cursor: grabbing; }
+
+.zl-balken-titel {
+    font-size: 0.68rem;
+    padding: 0 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.zl-griff {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    cursor: ew-resize;
+}
+
+.zl-griff[data-griff="start"] { left: 0; }
+.zl-griff[data-griff="ende"] { right: 0; }
+
+.zl-balken-person {
+    background: var(--akzent-kalender);
+}
+
+.zl-balken-person:hover {
+    background: var(--akzent-kalender-dunkel);
+}
+
+.zl-balken-ereignis {
+    background: var(--akzent-ereignis);
+}
+
+.zl-balken-ereignis:hover {
+    background: var(--akzent-ereignis-dunkel);
+}
+
+.zl-balken-ereignis.zl-verschoben {
+    background: var(--akzent-ereignis-hell);
+    color: var(--text);
+    top: 30px;
+}
+
+.zl-balken-ereignis.zl-verschoben:hover {
+    background: var(--akzent-ereignis);
+    color: #fff;
+}
+
+.zl-balken-ereignis.zl-projekt-verknuepft {
+    cursor: pointer;
+}
+
+.zl-notiz-marker {
+    position: absolute;
+    top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.zl-notiz-marker:active { cursor: grabbing; }
+
+.zl-notiz-punkt {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--akzent-reserve);
+    transform: rotate(45deg);
+    flex: none;
+}
+
+.zl-notiz-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* ============================================================
+   Vertikale Zeitleiste (Handy) – Achsen vertauscht: Datum läuft
+   nach unten, jede Person/jedes Ereignis wird zur Spalte.
+   ============================================================ */
+
+.zl-inner-v {
+    display: flex;
+    min-width: max-content;
+}
+
+.zl-datum-spalte {
+    flex: 0 0 56px; /* DATUM_SPALTE_BREITE */
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+}
+
+.zl-ecke-v {
+    position: sticky;
+    top: 0;
+    z-index: 7;
+    height: 130px; /* LABEL_GROESSE */
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.zl-datum-spur {
+    position: relative;
+}
+
+.zl-monat-strich-v,
+.zl-woche-strich-v {
+    position: absolute;
+    left: 2px;
+    right: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.zl-monat-strich-v span {
+    font-family: var(--font-medium);
+    font-size: 0.62rem;
+    color: var(--text);
+}
+
+.zl-woche-strich-v span {
+    font-size: 0.58rem;
+    color: var(--text-muted);
+}
+
+.zl-tag-zahl-v {
+    position: absolute;
+    left: 2px;
+    font-size: 0.55rem;
+    color: var(--text-muted);
+}
+
+.zl-feiertag-strich-v {
+    position: absolute;
+    left: 2px;
+    right: 0;
+    border-top: 2px solid var(--akzent-reserve);
+}
+
+.zl-feiertag-text-v {
+    font-size: 0.55rem;
+    color: var(--akzent-reserve-dunkel);
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    display: block;
+}
+
+.zl-hintergrund-v {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.zl-wochenende-streifen-v {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.zl-woche-gitterlinie-v {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px solid var(--border);
+    opacity: 0.6;
+}
+
+.zl-feiertag-flaeche-v {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--anthrazit-blass);
+}
+
+.zl-heute-linie-v {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: var(--akzent-kalender);
+}
+
+.zl-spalten-gruppe {
+    position: relative;
+    z-index: 1;
+    display: flex;
+}
+
+.zl-spalte {
+    flex: 0 0 84px; /* SPALTEN_BREITE */
+    border-right: 1px solid var(--border);
+}
+
+.zl-spalte.zl-spalte-doppelt { flex-basis: 156px; }
+
+.zl-spalte.zl-spalte-zeichnen-aktiv {
+    background: color-mix(in srgb, var(--akzent-ereignis) 12%, transparent);
+}
+
+.zl-spalte-label {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    height: 130px; /* LABEL_GROESSE */
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 0.72rem;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.zl-spur-v {
+    position: relative;
+}
+
+.zl-spur-v[data-neu] {
+    cursor: crosshair;
+}
+
+.zl-spur-v .zl-balken {
+    top: auto;
+    height: auto;
+    left: 6px;
+    width: 72px;
+}
+
+.zl-spalte-doppelt .zl-spur-v .zl-balken.zl-verschoben {
+    top: auto;
+    left: 84px;
+}
+
+.zl-spur-v .zl-griff {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: auto;
+    width: auto;
+    height: 7px;
+    cursor: ns-resize;
+}
+
+.zl-spur-v .zl-griff[data-griff="start"] { top: 0; }
+.zl-spur-v .zl-griff[data-griff="ende"] { bottom: 0; }
+
+.zl-spur-v .zl-balken-titel {
+    writing-mode: vertical-rl;
+    padding: 7px 0;
+}
+
+.zl-spur-v .zl-notiz-marker {
+    top: auto;
+    left: 8px;
+    flex-direction: column;
+}
+
+.zl-spur-v .zl-notiz-label {
+    writing-mode: vertical-rl;
+}
+
+.zl-spur-v .zl-balken-vorschau {
+    top: auto;
+    left: 6px;
+    width: 72px;
+    height: auto;
+}
+
+/* Browser-Ansicht: horizontale Zeitleiste, mehr Höhe verfügbar. */
 @media (min-width: 900px) {
 
     .container {
-        max-width: 1100px;
+        max-width: 1200px;
     }
 
-    /* Kalender bleibt kompakter, die Auswahl-Leiste bekommt daneben Platz
-       statt darunter zu erscheinen. */
-    .kalender-layout {
-        flex-direction: row;
-        align-items: flex-start;
+    .zl-scroll {
+        height: 70vh;
     }
 
-    .kalender-hauptspalte {
-        flex: 0 0 560px;
-        min-width: 0;
-    }
-
-    .kalender-seitenpanel {
-        flex: 1;
-        min-width: 320px;
-        border-top: none;
-        padding-left: 20px;
-        border-left: 1px solid var(--border);
-    }
-
-    .kalender-seitenpanel .auswahl-panel {
-        border-top: none;
-        padding-top: 0;
-        margin-top: 0;
-    }
-
-    .monat-woche .tag-zelle {
-        min-height: 74px;
-    }
-
-    .person-chip {
-        font-size: 0.7rem;
-        padding: 2px 7px;
-    }
-
-    .tag-nummer {
-        font-size: 0.9rem;
-    }
-
-    /* Wochenansicht bleibt übereinander gestapelt wie im Smartphone-Modus –
-       nebeneinander kollidierte optisch mit der Auswahl-Leiste, die jetzt
-       rechts daneben sitzt (die Hauptspalte ist dafür zu schmal). */
 }

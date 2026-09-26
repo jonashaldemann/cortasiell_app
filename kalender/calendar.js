@@ -3,8 +3,8 @@ import {
     arrayRemove,
     arrayUnion,
     collection,
-    deleteDoc,
     deleteField,
+    deleteDoc,
     doc,
     documentId,
     onSnapshot,
@@ -17,65 +17,85 @@ import {
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
-const MONATSNAMEN = [
-    "Januar", "Februar", "März", "April", "Mai", "Juni",
-    "Juli", "August", "September", "Oktober", "November", "Dezember"
-];
+// ============================================================
+// Zeitleisten-Kalender – horizontaler (Browser) bzw. vertikaler
+// (Handy) Zeitbalken, Fenster immer "heute .. heute + 1 Jahr".
+//
+// Datenmodell unverändert (siehe README/Plan):
+// - tage/{YYYY-MM-DD}: { personen: string[], aktivitaet: string }
+// - ereignisse/{id}: { titel, vonDatum, bisDatum, projektId,
+//   verschiebeVon?, verschiebeBis?, erstelltAm } – projektId-Ereignisse
+//   werden vom Projekte-Modul unter der ID "projekt-<projektId>"
+//   gespiegelt und sind hier nur lesbar (siehe ereignisOeffnen()).
+//
+// Personen-Balken sind aus den Tages-Einträgen abgeleitet (keine eigene
+// Collection): zusammenhängende Tage mit demselben Namen ergeben einen
+// Balken; Ziehen/Zeichnen schreibt per arrayUnion/arrayRemove auf die
+// jeweiligen Tage zurück.
+// ============================================================
 
 const MONATSNAMEN_KURZ = [
     "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
     "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"
 ];
 
-const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-
 const heute = new Date();
+heute.setHours(0, 0, 0, 0);
 
-// Browser-Ansicht (breiterer Viewport) zeigt mehr Namen pro Tag in der
-// Monatsansicht, bevor auf "+N" zusammengefasst wird – die passende
-// Zellbreite/-höhe dafür liefert die @media-Regel in style.css.
-const breitAnsichtMedia = window.matchMedia("(min-width: 900px)");
+const rangeStart = new Date(heute);
+const rangeEnde = tagePlus(rangeStart, 365);
+const totalTage = 366;
 
-function chipLimitProZelle() {
-    // Die Browser-Ansicht ist jetzt kompakter (Kalender + Auswahl-Leiste
-    // nebeneinander statt eine breite Spalte allein), daher ein kleinerer
-    // Wert als früher.
-    return breitAnsichtMedia.matches ? 6 : 3;
-}
+// Browser-Ansicht = horizontale Zeitleiste, Handy-Ansicht = vertikal
+// (dieselbe Breakpoint-Konvention wie im Rest der App).
+const breiteAnsichtMedia = window.matchMedia("(min-width: 900px)");
+function istHorizontal() { return breiteAnsichtMedia.matches; }
 
-let ansicht = "monat"; // "monat" | "woche"
-let cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+// Pixel pro Tag – wird per Zoom verändert. LABEL_GROESSE/SPALTEN_BREITE/
+// DATUM_SPALTE_BREITE müssen zu den entsprechenden Werten in style.css
+// passen (dort als Kommentar vermerkt).
+let zellGroesse = 12;
+const ZELL_MIN = 4;
+const ZELL_MAX = 56;
+const ZELL_TAGESZAHL_MIN = 20; // ab dieser Zellgrösse lohnt sich eine Tageszahl-Leiste
+const LABEL_GROESSE = 130;
+const SPALTEN_BREITE = 84;
+const DATUM_SPALTE_BREITE = 56;
+
+let ereignisse = [];
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
-let unsubscribeZeitraum = null;
-let ausgewaehlteTage = new Set();
-let letzterKlickId = null; // Anker für Shift-Klick-Bereiche
-let letzteAktion = "hinzugefuegt"; // "hinzugefuegt" | "entfernt" – wird bei Shift-Klick auf den ganzen Bereich angewendet
 
-let ereignisse = []; // [{ id, titel, vonDatum, bisDatum, projektId }] – komplette Collection, siehe Plan
-let bearbeitetesEreignisId = null; // null = neues Ereignis wird angelegt
+let letzteOrientierung = null;
+let bearbeitetesEreignisId = null;
+let bearbeiteterPersonBalken = null; // { alterName, alteTage: string[] }
+let bearbeitetesNotizDatum = null;
+let ereignisVerschiebeZeichnenId = null;
+
+let zlScrollEl, zlZoomSchieberEl;
 
 function init() {
 
-    abonniereZeitraum();
-    abonniereEreignisse();
-    renderAlles();
+    zlScrollEl = document.getElementById("zlScroll");
+    zlZoomSchieberEl = document.getElementById("zlZoomSchieber");
+    zlZoomSchieberEl.min = ZELL_MIN;
+    zlZoomSchieberEl.max = ZELL_MAX;
 
-}
-
-function abonniereEreignisse() {
-
-    onSnapshot(collection(db, "ereignisse"), snapshot => {
-
-        ereignisse = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderKalender();
-
-    }, error => {
-
-        console.error("Ereignisse konnten nicht geladen werden:", error);
-
+    zlScrollEl.addEventListener("pointerdown", aufZeigerAbwaerts);
+    zlScrollEl.addEventListener("wheel", aufRad, { passive: false });
+    zlZoomSchieberEl.addEventListener("input", () => {
+        zellGroesse = Number(zlZoomSchieberEl.value);
+        render();
     });
 
+    breiteAnsichtMedia.addEventListener("change", render);
+
+    abonniereEreignisse();
+    abonniereTage();
+    render();
+
 }
+
+// --- Datum-Helfer ---
 
 function pad(n) {
     return String(n).padStart(2, "0");
@@ -90,8 +110,14 @@ function idZuDatum(id) {
     return new Date(jahr, monat - 1, tag);
 }
 
-function anzahlTageImMonat(jahr, monat) {
-    return new Date(jahr, monat + 1, 0).getDate();
+function tagePlus(datum, n) {
+    const neu = new Date(datum);
+    neu.setDate(neu.getDate() + n);
+    return neu;
+}
+
+function tageZwischen(a, b) {
+    return Math.round((b - a) / 86400000);
 }
 
 function montagDerWoche(datum) {
@@ -101,10 +127,44 @@ function montagDerWoche(datum) {
     return montag;
 }
 
+function tagIndexZuId(idx) {
+    return datumZuId(tagePlus(rangeStart, idx));
+}
+
+function idZuTagIndex(id) {
+    return tageZwischen(rangeStart, idZuDatum(id));
+}
+
+function clampIdx(i) {
+    return Math.max(0, Math.min(totalTage - 1, i));
+}
+
+function tageIdsZwischen(vonId, bisId) {
+    const ids = [];
+    const von = idZuDatum(vonId);
+    const bis = idZuDatum(bisId);
+    for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
+        ids.push(datumZuId(tag));
+    }
+    return ids;
+}
+
+function formatDatumLang(id) {
+    const MONATSNAMEN = [
+        "Januar", "Februar", "März", "April", "Mai", "Juni",
+        "Juli", "August", "September", "Oktober", "November", "Dezember"
+    ];
+    const [jahr, monat, tag] = id.split("-").map(Number);
+    return `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
+}
+
+function kuerzeText(text, maxLen) {
+    return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+}
+
 // Osterdatum nach dem gaußschen Osteralgorithmus (Meeus/Jones/Butcher) –
 // daraus lassen sich alle beweglichen Feiertage (Karfreitag, Auffahrt,
-// Pfingsten, ...) für jedes beliebige Jahr herleiten, ohne Daten pflegen
-// zu müssen.
+// Pfingsten, ...) für jedes beliebige Jahr herleiten.
 function osterdatum(jahr) {
 
     const a = jahr % 19;
@@ -124,12 +184,6 @@ function osterdatum(jahr) {
 
     return new Date(jahr, monat - 1, tag);
 
-}
-
-function tagePlus(datum, n) {
-    const neu = new Date(datum);
-    neu.setDate(neu.getDate() + n);
-    return neu;
 }
 
 const feiertageCache = {};
@@ -168,18 +222,7 @@ function feiertagName(datum) {
     return feiertageFuerJahr(datum.getFullYear())[datumZuId(datum)] || null;
 }
 
-function ereignisseFuerTag(id) {
-    return ereignisse.filter(e => e.vonDatum <= id && e.bisDatum >= id);
-}
-
-function verschobeneEreignisseFuerTag(id) {
-    return ereignisse.filter(e => e.verschiebeVon && e.verschiebeBis && e.verschiebeVon <= id && e.verschiebeBis >= id);
-}
-
-// HTML-Escaping für alles, was Nutzer als Freitext eingeben (Namen,
-// Aktivitäten) – die Werte kommen ungeprüft von anderen Besuchern.
-// Escaped auch Anführungszeichen, damit die Werte sicher innerhalb von
-// HTML-Attributen (z.B. data-name="...") verwendet werden können.
+// HTML-Escaping für alles, was Nutzer als Freitext eingeben.
 function escapeHtml(text) {
 
     return String(text ?? "")
@@ -191,39 +234,27 @@ function escapeHtml(text) {
 
 }
 
-// Grenzen des aktuell sichtbaren Zeitraums (Monat oder Woche) rund um
-// cursorDatum.
-function zeitraumGrenzen() {
+// --- Firestore ---
 
-    if (ansicht === "woche") {
+function abonniereEreignisse() {
 
-        const von = montagDerWoche(cursorDatum);
-        const bis = new Date(von);
-        bis.setDate(von.getDate() + 6);
+    onSnapshot(collection(db, "ereignisse"), snapshot => {
 
-        return { von, bis };
+        ereignisse = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        render();
 
-    }
+    }, error => {
 
-    const jahr = cursorDatum.getFullYear();
-    const monat = cursorDatum.getMonth();
+        console.error("Ereignisse konnten nicht geladen werden:", error);
 
-    return {
-        von: new Date(jahr, monat, 1),
-        bis: new Date(jahr, monat, anzahlTageImMonat(jahr, monat))
-    };
+    });
 
 }
 
-function abonniereZeitraum() {
+function abonniereTage() {
 
-    if (unsubscribeZeitraum) {
-        unsubscribeZeitraum();
-    }
-
-    const { von, bis } = zeitraumGrenzen();
-    const vonId = datumZuId(von);
-    const bisId = datumZuId(bis);
+    const vonId = datumZuId(rangeStart);
+    const bisId = datumZuId(rangeEnde);
 
     const q = query(
         collection(db, "tage"),
@@ -232,603 +263,994 @@ function abonniereZeitraum() {
         endAt(bisId)
     );
 
-    unsubscribeZeitraum = onSnapshot(q, snapshot => {
+    onSnapshot(q, snapshot => {
 
-        // Nur den sichtbaren Zeitraum neu befüllen – Tage ohne Dokument
-        // (also ohne Eintrag) bleiben einfach weg.
-        for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
-            delete tageDaten[datumZuId(tag)];
-        }
-
-        snapshot.forEach(docSnap => {
-            tageDaten[docSnap.id] = docSnap.data();
-        });
-
-        renderKalender();
-        renderAuswahlLeiste();
+        tageDaten = {};
+        snapshot.forEach(docSnap => { tageDaten[docSnap.id] = docSnap.data(); });
+        render();
 
     }, error => {
 
         console.error("Kalender konnte nicht geladen werden:", error);
 
-        document.getElementById("kalenderGrid").innerHTML =
+        document.getElementById("zlScroll").innerHTML =
             "<p>⚠️ Kalender konnte nicht geladen werden. Bitte Internetverbindung prüfen.</p>";
 
     });
 
 }
 
-function renderAlles() {
+// --- Datenaufbereitung (orientierungsunabhängig) ---
 
-    renderAnsichtUmschalter();
-    renderKalender();
-    renderAuswahlLeiste();
+function personenNamenListe() {
+
+    const namen = new Set();
+
+    for (let i = 0; i < totalTage; i++) {
+        (tageDaten[tagIndexZuId(i)]?.personen || []).forEach(n => namen.add(n));
+    }
+
+    return [...namen].sort((a, b) => a.localeCompare(b, "de"));
 
 }
 
-function ansichtWechseln(neu) {
+function personenLaeufe(name) {
 
-    if (neu === ansicht) {
+    const laeufe = [];
+    let start = null;
+
+    for (let i = 0; i < totalTage; i++) {
+
+        const dabei = (tageDaten[tagIndexZuId(i)]?.personen || []).includes(name);
+
+        if (dabei && start === null) {
+            start = i;
+        }
+
+        if (!dabei && start !== null) {
+            laeufe.push({ startIdx: start, endIdx: i - 1 });
+            start = null;
+        }
+
+    }
+
+    if (start !== null) {
+        laeufe.push({ startIdx: start, endIdx: totalTage - 1 });
+    }
+
+    return laeufe;
+
+}
+
+function segmentClip(vonId, bisId) {
+
+    if (!vonId || !bisId) {
+        return null;
+    }
+
+    const startIdx = clampIdx(idZuTagIndex(vonId));
+    const endIdx = clampIdx(idZuTagIndex(bisId));
+
+    if (idZuTagIndex(bisId) < 0 || idZuTagIndex(vonId) > totalTage - 1 || endIdx < startIdx) {
+        return null;
+    }
+
+    return { startIdx, endIdx };
+
+}
+
+function ereignisZeilen() {
+
+    return ereignisse
+        .map(e => {
+
+            const segmente = [];
+            const haupt = segmentClip(e.vonDatum, e.bisDatum);
+
+            if (haupt) {
+                segmente.push({ ...haupt, istVerschoben: false });
+            }
+
+            if (e.verschiebeVon && e.verschiebeBis) {
+                const versch = segmentClip(e.verschiebeVon, e.verschiebeBis);
+                if (versch) {
+                    segmente.push({ ...versch, istVerschoben: true });
+                }
+            }
+
+            return { ereignis: e, segmente };
+
+        })
+        .filter(z => z.segmente.length > 0)
+        .sort((a, b) => a.segmente[0].startIdx - b.segmente[0].startIdx);
+
+}
+
+function tagesnotizenListe() {
+
+    const liste = [];
+
+    for (let i = 0; i < totalTage; i++) {
+
+        const id = tagIndexZuId(i);
+        const text = tageDaten[id]?.aktivitaet;
+
+        if (text) {
+            liste.push({ idx: i, id, text });
+        }
+
+    }
+
+    return liste;
+
+}
+
+function feiertageImBereich() {
+
+    const liste = [];
+
+    for (let i = 0; i < totalTage; i++) {
+
+        const name = feiertagName(tagePlus(rangeStart, i));
+
+        if (name) {
+            liste.push({ idx: i, name });
+        }
+
+    }
+
+    return liste;
+
+}
+
+function wochenendenLaeufe() {
+
+    const laeufe = [];
+    let start = null;
+
+    for (let i = 0; i < totalTage; i++) {
+
+        const tag = tagePlus(rangeStart, i).getDay();
+        const we = tag === 0 || tag === 6;
+
+        if (we && start === null) {
+            start = i;
+        }
+
+        if (!we && start !== null) {
+            laeufe.push({ startIdx: start, endIdx: i - 1 });
+            start = null;
+        }
+
+    }
+
+    if (start !== null) {
+        laeufe.push({ startIdx: start, endIdx: totalTage - 1 });
+    }
+
+    return laeufe;
+
+}
+
+function wochenMontage() {
+
+    const liste = [];
+    let d = montagDerWoche(rangeStart);
+
+    if (d < rangeStart) {
+        d = tagePlus(d, 7);
+    }
+
+    while (d <= rangeEnde) {
+        liste.push(new Date(d));
+        d = tagePlus(d, 7);
+    }
+
+    return liste;
+
+}
+
+function monatsStarts() {
+
+    const liste = [];
+    let d = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+
+    if (d < rangeStart) {
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+
+    while (d <= rangeEnde) {
+        liste.push(new Date(d));
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+
+    return liste;
+
+}
+
+// --- Geometrie-Helfer (Achse hängt von der Orientierung ab) ---
+
+function rechteckStil(startIdx, endIdx) {
+
+    const start = startIdx * zellGroesse;
+    const laenge = (endIdx - startIdx + 1) * zellGroesse;
+
+    return istHorizontal()
+        ? `left:${start}px; width:${laenge}px;`
+        : `top:${start}px; height:${laenge}px;`;
+
+}
+
+function punktStil(idx) {
+
+    const start = idx * zellGroesse;
+    return istHorizontal() ? `left:${start}px;` : `top:${start}px;`;
+
+}
+
+// --- Bar-/Marker-HTML ---
+
+function personBalkenHtml(name, lauf) {
+
+    const vonId = tagIndexZuId(lauf.startIdx);
+    const bisId = tagIndexZuId(lauf.endIdx);
+
+    return `
+        <div class="zl-balken zl-balken-person" data-balken data-typ="person"
+            data-name="${escapeHtml(name)}" data-von-id="${vonId}" data-bis-id="${bisId}"
+            style="${rechteckStil(lauf.startIdx, lauf.endIdx)}">
+            <span class="zl-griff" data-griff="start"></span>
+            <span class="zl-balken-titel">${escapeHtml(name)}</span>
+            <span class="zl-griff" data-griff="ende"></span>
+        </div>
+    `;
+
+}
+
+function ereignisBalkenHtml(ereignis, segment) {
+
+    const projektKlasse = ereignis.projektId ? " zl-projekt-verknuepft" : "";
+    const verschobenKlasse = segment.istVerschoben ? " zl-verschoben" : "";
+    const praefix = segment.istVerschoben ? "↦ " : "";
+    const vonId = tagIndexZuId(segment.startIdx);
+    const bisId = tagIndexZuId(segment.endIdx);
+    const projektAttr = ereignis.projektId ? ` data-projekt-verknuepft="1"` : "";
+
+    return `
+        <div class="zl-balken zl-balken-ereignis${projektKlasse}${verschobenKlasse}" data-balken data-typ="ereignis"
+            data-id="${ereignis.id}" data-segment="${segment.istVerschoben ? "verschoben" : "haupt"}"
+            data-von-id="${vonId}" data-bis-id="${bisId}"${projektAttr}
+            style="${rechteckStil(segment.startIdx, segment.endIdx)}">
+            <span class="zl-griff" data-griff="start"></span>
+            <span class="zl-balken-titel">${praefix}${escapeHtml(ereignis.titel)}</span>
+            <span class="zl-griff" data-griff="ende"></span>
+        </div>
+    `;
+
+}
+
+function notizMarkerHtml(eintrag) {
+
+    return `
+        <div class="zl-notiz-marker" data-balken data-typ="notiz" data-id="${eintrag.id}"
+            style="${punktStil(eintrag.idx)}" title="${escapeHtml(eintrag.text)}">
+            <span class="zl-notiz-punkt"></span>
+            <span class="zl-notiz-label">${escapeHtml(kuerzeText(eintrag.text, 24))}</span>
+        </div>
+    `;
+
+}
+
+// --- Rendering: horizontale Zeitleiste (Browser) ---
+
+function horizontalHtml() {
+
+    const gesamtGroesse = totalTage * zellGroesse;
+    const monate = monatsStarts();
+    const wochen = wochenMontage();
+    const zeigeTage = zellGroesse >= ZELL_TAGESZAHL_MIN;
+    const feiertage = feiertageImBereich();
+    const wochenenden = wochenendenLaeufe();
+
+    const monateHtml = monate.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-monat-strich" style="left:${idx * zellGroesse}px;"><span>${MONATSNAMEN_KURZ[d.getMonth()]} ${d.getFullYear()}</span></div>`;
+    }).join("");
+
+    const wochenHtml = wochen.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-woche-strich" style="left:${idx * zellGroesse}px;"><span>${pad(d.getDate())}.${pad(d.getMonth() + 1)}.</span></div>`;
+    }).join("");
+
+    const tageHtml = zeigeTage
+        ? Array.from({ length: totalTage }, (_, i) =>
+            `<div class="zl-tag-zahl" style="left:${i * zellGroesse}px; width:${zellGroesse}px;">${tagePlus(rangeStart, i).getDate()}</div>`
+        ).join("")
+        : "";
+
+    const feiertagHtml = feiertage.map(f =>
+        `<div class="zl-feiertag-strich" style="left:${f.idx * zellGroesse}px;" title="${escapeHtml(f.name)}">
+            <span class="zl-feiertag-text">${escapeHtml(f.name)}</span>
+        </div>`
+    ).join("");
+
+    const wochenendHtml = wochenenden.map(l =>
+        `<div class="zl-wochenende-streifen" style="left:${l.startIdx * zellGroesse}px; width:${(l.endIdx - l.startIdx + 1) * zellGroesse}px;"></div>`
+    ).join("");
+
+    const wochenGitterHtml = wochen.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-woche-gitterlinie" style="left:${idx * zellGroesse}px;"></div>`;
+    }).join("");
+
+    const feiertagFlaecheHtml = feiertage.map(f =>
+        `<div class="zl-feiertag-flaeche" style="left:${f.idx * zellGroesse}px; width:${zellGroesse}px;"></div>`
+    ).join("");
+
+    return `
+        <div class="zl-inner" style="width:${LABEL_GROESSE + gesamtGroesse}px;">
+            <div class="zl-kopf-reihe">
+                <div class="zl-ecke"></div>
+                <div class="zl-kopf-spuren" style="width:${gesamtGroesse}px;">
+                    <div class="zl-monat-spur">${monateHtml}</div>
+                    <div class="zl-woche-spur">${wochenHtml}</div>
+                    ${zeigeTage ? `<div class="zl-tag-spur">${tageHtml}</div>` : ""}
+                    <div class="zl-feiertag-spur">${feiertagHtml}</div>
+                </div>
+            </div>
+            <div class="zl-koerper">
+                <div class="zl-hintergrund" style="left:${LABEL_GROESSE}px; width:${gesamtGroesse}px;">
+                    ${wochenendHtml}
+                    ${wochenGitterHtml}
+                    ${feiertagFlaecheHtml}
+                    <div class="zl-heute-linie"></div>
+                </div>
+                ${personenAbschnittHtml(gesamtGroesse)}
+                ${ereignisAbschnittHtml(gesamtGroesse)}
+                ${tagesnotizenAbschnittHtml(gesamtGroesse)}
+            </div>
+        </div>
+    `;
+
+}
+
+function personenAbschnittHtml(gesamtGroesse) {
+
+    const namen = personenNamenListe();
+
+    const zeilenHtml = namen.map(name => {
+
+        const balkenHtml = personenLaeufe(name).map(l => personBalkenHtml(name, l)).join("");
+
+        return `
+            <div class="zl-zeile">
+                <div class="zl-label-zelle" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+                <div class="zl-spur" data-neu="person-segment" data-name="${escapeHtml(name)}" style="width:${gesamtGroesse}px;">
+                    ${balkenHtml}
+                </div>
+            </div>
+        `;
+
+    }).join("");
+
+    return `
+        <div class="zl-abschnitt-titel">Personen</div>
+        ${zeilenHtml}
+        <div class="zl-zeile zl-hinzufuegen-zeile">
+            <div class="zl-label-zelle"><span class="zl-hinzufuegen-text">+ Person</span></div>
+            <div class="zl-spur" data-neu="person-neu" style="width:${gesamtGroesse}px;"></div>
+        </div>
+    `;
+
+}
+
+function ereignisAbschnittHtml(gesamtGroesse) {
+
+    const zeilenHtml = ereignisZeilen().map(z => {
+
+        const balkenHtml = z.segmente.map(seg => ereignisBalkenHtml(z.ereignis, seg)).join("");
+        const projektHinweis = z.ereignis.projektId ? " 📎" : "";
+        const doppelKlasse = z.segmente.length > 1 ? " zl-zeile-doppelt" : "";
+        const armiertKlasse = ereignisVerschiebeZeichnenId === z.ereignis.id ? " zl-zeile-zeichnen-aktiv" : "";
+
+        return `
+            <div class="zl-zeile${doppelKlasse}${armiertKlasse}">
+                <div class="zl-label-zelle" title="${escapeHtml(z.ereignis.titel)}">${escapeHtml(z.ereignis.titel)}${projektHinweis}</div>
+                <div class="zl-spur" data-neu="ereignis-segment" data-id="${z.ereignis.id}" style="width:${gesamtGroesse}px;">
+                    ${balkenHtml}
+                </div>
+            </div>
+        `;
+
+    }).join("");
+
+    return `
+        <div class="zl-abschnitt-titel">Ereignisse &amp; Projekte</div>
+        ${zeilenHtml}
+        <div class="zl-zeile zl-hinzufuegen-zeile">
+            <div class="zl-label-zelle"><span class="zl-hinzufuegen-text">+ Ereignis</span></div>
+            <div class="zl-spur" data-neu="ereignis-neu" style="width:${gesamtGroesse}px;"></div>
+        </div>
+    `;
+
+}
+
+function tagesnotizenAbschnittHtml(gesamtGroesse) {
+
+    const markerHtml = tagesnotizenListe().map(e => notizMarkerHtml(e)).join("");
+
+    return `
+        <div class="zl-abschnitt-titel">Tagesnotizen</div>
+        <div class="zl-zeile">
+            <div class="zl-label-zelle"><span class="zl-hinweis-mini">Klicken zum Eintragen</span></div>
+            <div class="zl-spur zl-spur-notizen" data-neu="notiz" style="width:${gesamtGroesse}px;">
+                ${markerHtml}
+            </div>
+        </div>
+    `;
+
+}
+
+// --- Rendering: vertikale Zeitleiste (Handy) ---
+
+function vertikalHtml() {
+
+    const gesamtGroesse = totalTage * zellGroesse;
+    const monate = monatsStarts();
+    const wochen = wochenMontage();
+    const zeigeTage = zellGroesse >= ZELL_TAGESZAHL_MIN;
+    const feiertage = feiertageImBereich();
+    const wochenenden = wochenendenLaeufe();
+
+    const monateHtml = monate.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-monat-strich-v" style="top:${idx * zellGroesse}px;"><span>${MONATSNAMEN_KURZ[d.getMonth()]} ${d.getFullYear()}</span></div>`;
+    }).join("");
+
+    const wochenHtml = wochen.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-woche-strich-v" style="top:${idx * zellGroesse}px;"><span>${pad(d.getDate())}.${pad(d.getMonth() + 1)}.</span></div>`;
+    }).join("");
+
+    const tageHtml = zeigeTage
+        ? Array.from({ length: totalTage }, (_, i) =>
+            `<div class="zl-tag-zahl-v" style="top:${i * zellGroesse}px; height:${zellGroesse}px;">${tagePlus(rangeStart, i).getDate()}</div>`
+        ).join("")
+        : "";
+
+    const feiertagHtml = feiertage.map(f =>
+        `<div class="zl-feiertag-strich-v" style="top:${f.idx * zellGroesse}px;" title="${escapeHtml(f.name)}">
+            <span class="zl-feiertag-text-v">${escapeHtml(f.name)}</span>
+        </div>`
+    ).join("");
+
+    const wochenendHtml = wochenenden.map(l =>
+        `<div class="zl-wochenende-streifen-v" style="top:${l.startIdx * zellGroesse}px; height:${(l.endIdx - l.startIdx + 1) * zellGroesse}px;"></div>`
+    ).join("");
+
+    const wochenGitterHtml = wochen.map(d => {
+        const idx = idZuTagIndex(datumZuId(d));
+        return `<div class="zl-woche-gitterlinie-v" style="top:${idx * zellGroesse}px;"></div>`;
+    }).join("");
+
+    const feiertagFlaecheHtml = feiertage.map(f =>
+        `<div class="zl-feiertag-flaeche-v" style="top:${f.idx * zellGroesse}px; height:${zellGroesse}px;"></div>`
+    ).join("");
+
+    const namen = personenNamenListe();
+
+    const personenSpaltenHtml = namen.map(name => {
+        const balkenHtml = personenLaeufe(name).map(l => personBalkenHtml(name, l)).join("");
+        return `
+            <div class="zl-spalte">
+                <div class="zl-spalte-label" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+                <div class="zl-spur-v" data-neu="person-segment" data-name="${escapeHtml(name)}" style="height:${gesamtGroesse}px;">
+                    ${balkenHtml}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    const personenHinzufuegenSpalte = `
+        <div class="zl-spalte zl-hinzufuegen-spalte">
+            <div class="zl-spalte-label">+ Person</div>
+            <div class="zl-spur-v" data-neu="person-neu" style="height:${gesamtGroesse}px;"></div>
+        </div>
+    `;
+
+    const ereignisZeilenDaten = ereignisZeilen();
+
+    const ereignisSpaltenHtml = ereignisZeilenDaten.map(z => {
+        const balkenHtml = z.segmente.map(seg => ereignisBalkenHtml(z.ereignis, seg)).join("");
+        const projektHinweis = z.ereignis.projektId ? " 📎" : "";
+        const doppelKlasse = z.segmente.length > 1 ? " zl-spalte-doppelt" : "";
+        const armiertKlasse = ereignisVerschiebeZeichnenId === z.ereignis.id ? " zl-spalte-zeichnen-aktiv" : "";
+        return `
+            <div class="zl-spalte${doppelKlasse}${armiertKlasse}">
+                <div class="zl-spalte-label" title="${escapeHtml(z.ereignis.titel)}">${escapeHtml(z.ereignis.titel)}${projektHinweis}</div>
+                <div class="zl-spur-v" data-neu="ereignis-segment" data-id="${z.ereignis.id}" style="height:${gesamtGroesse}px;">
+                    ${balkenHtml}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    const ereignisHinzufuegenSpalte = `
+        <div class="zl-spalte zl-hinzufuegen-spalte">
+            <div class="zl-spalte-label">+ Ereignis</div>
+            <div class="zl-spur-v" data-neu="ereignis-neu" style="height:${gesamtGroesse}px;"></div>
+        </div>
+    `;
+
+    const notizMarkerHtmlV = tagesnotizenListe().map(e => notizMarkerHtml(e)).join("");
+
+    const notizSpalte = `
+        <div class="zl-spalte">
+            <div class="zl-spalte-label">Notizen</div>
+            <div class="zl-spur-v zl-spur-notizen-v" data-neu="notiz" style="height:${gesamtGroesse}px;">
+                ${notizMarkerHtmlV}
+            </div>
+        </div>
+    `;
+
+    const anzahlSpalten = (namen.length + 1) + (ereignisZeilenDaten.length + 1) + 1;
+
+    return `
+        <div class="zl-inner-v" style="min-height:${LABEL_GROESSE + gesamtGroesse}px;">
+            <div class="zl-datum-spalte">
+                <div class="zl-ecke-v"></div>
+                <div class="zl-datum-spur" style="height:${gesamtGroesse}px;">
+                    ${monateHtml}${wochenHtml}${tageHtml}${feiertagHtml}
+                </div>
+            </div>
+            <div class="zl-hintergrund-v" style="top:${LABEL_GROESSE}px; left:${DATUM_SPALTE_BREITE}px; width:${anzahlSpalten * SPALTEN_BREITE}px; height:${gesamtGroesse}px;">
+                ${wochenendHtml}
+                ${wochenGitterHtml}
+                ${feiertagFlaecheHtml}
+                <div class="zl-heute-linie-v"></div>
+            </div>
+            <div class="zl-spalten-gruppe">
+                ${personenSpaltenHtml}${personenHinzufuegenSpalte}
+                ${ereignisSpaltenHtml}${ereignisHinzufuegenSpalte}
+                ${notizSpalte}
+            </div>
+        </div>
+    `;
+
+}
+
+// --- Render-Einstieg + Zoom-Standard ---
+
+function standardZoomSetzen() {
+
+    const verfuegbar = (istHorizontal() ? zlScrollEl.clientWidth : zlScrollEl.clientHeight) - LABEL_GROESSE;
+    zellGroesse = Math.max(ZELL_MIN, Math.min(ZELL_MAX, Math.floor(verfuegbar / (7 * 4))));
+    zlZoomSchieberEl.value = zellGroesse;
+
+}
+
+function render() {
+
+    const jetzt = istHorizontal() ? "horizontal" : "vertikal";
+
+    if (jetzt !== letzteOrientierung) {
+        letzteOrientierung = jetzt;
+        standardZoomSetzen();
+    }
+
+    zlScrollEl.innerHTML = jetzt === "horizontal" ? horizontalHtml() : vertikalHtml();
+
+}
+
+// --- Zoom (Strg/Cmd + Scrollrad) ---
+
+function zeigerKoordinate(e) {
+    return istHorizontal() ? e.clientX : e.clientY;
+}
+
+function aufRad(e) {
+
+    if (!(e.ctrlKey || e.metaKey)) {
         return;
     }
 
-    ansicht = neu;
-    ausgewaehlteTage.clear();
-    letzterKlickId = null;
+    e.preventDefault();
 
-    abonniereZeitraum();
-    renderAlles();
+    const rect = zlScrollEl.getBoundingClientRect();
+    const basis = istHorizontal() ? rect.left : rect.top;
+    const scrollVersatz = istHorizontal() ? zlScrollEl.scrollLeft : zlScrollEl.scrollTop;
+    const koordinateImInhalt = zeigerKoordinate(e) - basis + scrollVersatz;
+    const tagUnterZeiger = (koordinateImInhalt - LABEL_GROESSE) / zellGroesse;
 
-}
+    const faktor = Math.pow(1.0014, -e.deltaY);
+    const alt = zellGroesse;
+    zellGroesse = Math.max(ZELL_MIN, Math.min(ZELL_MAX, zellGroesse * faktor));
 
-function zeitraumWechseln(delta) {
-
-    if (ansicht === "woche") {
-        cursorDatum.setDate(cursorDatum.getDate() + delta * 7);
-    } else {
-        cursorDatum.setMonth(cursorDatum.getMonth() + delta);
+    if (zellGroesse === alt) {
+        return;
     }
 
-    ausgewaehlteTage.clear();
-    letzterKlickId = null;
+    render();
+    zlZoomSchieberEl.value = Math.round(zellGroesse);
 
-    abonniereZeitraum();
-    renderAlles();
+    const neueKoordinateImInhalt = LABEL_GROESSE + tagUnterZeiger * zellGroesse;
+    const delta = neueKoordinateImInhalt - koordinateImInhalt;
+
+    if (istHorizontal()) {
+        zlScrollEl.scrollLeft += delta;
+    } else {
+        zlScrollEl.scrollTop += delta;
+    }
 
 }
 
 function heuteAnzeigen() {
 
-    cursorDatum = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
-    ausgewaehlteTage.clear();
-    letzterKlickId = null;
-
-    abonniereZeitraum();
-    renderAlles();
-
-}
-
-function renderAnsichtUmschalter() {
-
-    document.getElementById("ansichtUmschalter").innerHTML = `
-        <div class="ansicht-zeile">
-            <div class="ansicht-umschalter">
-                <button
-                    class="umschalt-button ${ansicht === "monat" ? "aktiv" : ""}"
-                    onclick="window.ansichtWechseln('monat')"
-                >Monat</button>
-                <button
-                    class="umschalt-button ${ansicht === "woche" ? "aktiv" : ""}"
-                    onclick="window.ansichtWechseln('woche')"
-                >Woche</button>
-            </div>
-            <button class="heute-button" onclick="window.heuteAnzeigen()">Heute</button>
-            <button class="ereignis-button" onclick="window.neuesEreignis()">+ Ereignis</button>
-        </div>
-    `;
-
-}
-
-function renderKalender() {
-
-    if (ansicht === "woche") {
-        renderWochenansicht();
+    if (istHorizontal()) {
+        zlScrollEl.scrollLeft = 0;
     } else {
-        renderMonatsansicht();
+        zlScrollEl.scrollTop = 0;
     }
 
 }
 
-// Liefert das Wochen-Segment eines Datumsbereichs (z.B. vonDatum/bisDatum
-// oder verschiebeVon/verschiebeBis), auf die Woche geclippt – oder [], wenn
-// der Bereich fehlt oder sich nicht mit der Woche überschneidet.
-function segmentFuerBereichInWoche(ereignis, vonFeld, bisFeld, wochenMontag, wochenSonntag, istVerschoben) {
+// --- Ziehen: neuer Balken auf einer "+"-Spur oder leerer Zeilenfläche ---
 
-    const von = ereignis[vonFeld];
-    const bis = ereignis[bisFeld];
+const ZIEH_SCHWELLE_PX = 4;
 
-    if (!von || !bis) {
-        return [];
-    }
-
-    const wochenVonId = datumZuId(wochenMontag);
-    const wochenBisId = datumZuId(wochenSonntag);
-
-    if (!(von <= wochenBisId && bis >= wochenVonId)) {
-        return [];
-    }
-
-    const startCol = Math.max(0, Math.round((idZuDatum(von) - wochenMontag) / 86400000));
-    const endCol = Math.min(6, Math.round((idZuDatum(bis) - wochenMontag) / 86400000));
-
-    return [{ ereignis, startCol, endCol, istVerschoben }];
-
+function spurRechteck(el) {
+    return el.getBoundingClientRect();
 }
 
-// Ereignisse, die sich mit dieser Woche (Mo–So) überschneiden, jeweils auf
-// die Woche geclippt (Spalte 0=Mo ... 6=So) und einer Lane zugewiesen –
-// Standard-Interval-Scheduling, damit sich überlappende Ereignisse nicht
-// gegenseitig überdecken. Ein optionales Verschiebedatum liefert ein
-// zusätzliches, eigenständiges Segment (hellere Farbe, siehe Rendering).
-function ereignisLanesFuerWoche(wochenMontag, wochenSonntag) {
-
-    const segmente = ereignisse
-        .flatMap(e => [
-            ...segmentFuerBereichInWoche(e, "vonDatum", "bisDatum", wochenMontag, wochenSonntag, false),
-            ...segmentFuerBereichInWoche(e, "verschiebeVon", "verschiebeBis", wochenMontag, wochenSonntag, true)
-        ])
-        .sort((a, b) => a.startCol - b.startCol || (b.endCol - b.startCol) - (a.endCol - a.startCol));
-
-    const laneEnden = []; // laneEnden[i] = letzte belegte Spalte der Lane i
-    const platzierte = [];
-
-    segmente.forEach(seg => {
-
-        let lane = laneEnden.findIndex(letzteSpalte => letzteSpalte < seg.startCol);
-
-        if (lane === -1) {
-            lane = laneEnden.length;
-        }
-
-        laneEnden[lane] = seg.endCol;
-        platzierte.push({ ...seg, lane });
-
-    });
-
-    return platzierte;
-
+function koordinateZuTagIndex(rect, clientKoordinate) {
+    const basis = istHorizontal() ? rect.left : rect.top;
+    return clampIdx(Math.round((clientKoordinate - basis) / zellGroesse));
 }
 
-function renderMonatsansicht() {
-
-    const jahr = cursorDatum.getFullYear();
-    const monat = cursorDatum.getMonth();
-
-    document.getElementById("monatsNavigation").innerHTML = `
-        <button onclick="window.zeitraumWechseln(-1)" class="nav-button">‹</button>
-        <span class="zeitraum-titel">${MONATSNAMEN[monat]} ${jahr}</span>
-        <button onclick="window.zeitraumWechseln(1)" class="nav-button">›</button>
-    `;
-
-    const ersterWochentag = (new Date(jahr, monat, 1).getDay() + 6) % 7; // Mo=0
-    const anzahlTage = anzahlTageImMonat(jahr, monat);
-    const heuteId = datumZuId(heute);
-
-    const anzahlWochen = Math.ceil((ersterWochentag + anzahlTage) / 7);
-    const ersterMontag = montagDerWoche(new Date(jahr, monat, 1));
-
-    const limit = chipLimitProZelle();
-
-    let wochenHtml = "";
-
-    for (let w = 0; w < anzahlWochen; w++) {
-
-        const wochenMontag = tagePlus(ersterMontag, w * 7);
-        const wochenSonntag = tagePlus(wochenMontag, 6);
-
-        let tageHtml = "";
-
-        for (let spalte = 0; spalte < 7; spalte++) {
-
-            const tagDatumObj = tagePlus(wochenMontag, spalte);
-
-            if (tagDatumObj.getMonth() !== monat) {
-                tageHtml += `<div class="tag-zelle leer"></div>`;
-                continue;
-            }
-
-            const id = datumZuId(tagDatumObj);
-            const eintrag = tageDaten[id];
-            const personen = eintrag?.personen || [];
-            const aktivitaet = eintrag?.aktivitaet || "";
-            const feiertag = feiertagName(tagDatumObj);
-
-            const chips = personen
-                .slice(0, limit)
-                .map(name => `<span class="person-chip">${escapeHtml(name)}</span>`)
-                .join("");
-
-            const mehrChip = personen.length > limit
-                ? `<span class="person-chip mehr">+${personen.length - limit}</span>`
-                : "";
-
-            const aktivitaetSnippet = aktivitaet
-                ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>`
-                : "";
-
-            const feiertagLabel = feiertag
-                ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>`
-                : "";
-
-            const heuteKlasse = id === heuteId ? " heute" : "";
-            const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
-            const feiertagKlasse = feiertag ? " feiertag" : "";
-
-            tageHtml += `
-                <div class="tag-zelle${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
-                    <div class="tag-nummer">${tagDatumObj.getDate()}</div>
-                    ${feiertagLabel}
-                    <div class="person-chips">${chips}${mehrChip}</div>
-                    ${aktivitaetSnippet}
-                </div>
-            `;
-
-        }
-
-        const balkenHtml = ereignisLanesFuerWoche(wochenMontag, wochenSonntag).map(seg => {
-
-            const projektKlasse = seg.ereignis.projektId ? " projekt-verknuepft" : "";
-            const verschobenKlasse = seg.istVerschoben ? " verschoben" : "";
-            const titelPrefix = seg.istVerschoben ? "↦ " : "";
-
-            return `
-                <div class="ereignis-balken${projektKlasse}${verschobenKlasse}"
-                    style="grid-column:${seg.startCol + 1} / ${seg.endCol + 2}; grid-row:${seg.lane + 2};"
-                    onclick="event.stopPropagation(); window.ereignisOeffnen('${seg.ereignis.id}')"
-                >${titelPrefix}${escapeHtml(seg.ereignis.titel)}</div>
-            `;
-
-        }).join("");
-
-        wochenHtml += `<div class="monat-woche">${tageHtml}${balkenHtml}</div>`;
-
-    }
-
-    document.getElementById("kalenderGrid").innerHTML = `
-        <div class="wochentage-reihe">
-            ${WOCHENTAGE.map(w => `<div class="wochentag">${w}</div>`).join("")}
-        </div>
-        <div class="monat-wochen-liste">
-            ${wochenHtml}
-        </div>
-    `;
-
-}
-
-function renderWochenansicht() {
-
-    const montag = montagDerWoche(cursorDatum);
-    const sonntag = new Date(montag);
-    sonntag.setDate(montag.getDate() + 6);
-
-    const titel = montag.getMonth() === sonntag.getMonth()
-        ? `${montag.getDate()}.–${sonntag.getDate()}. ${MONATSNAMEN[montag.getMonth()]} ${montag.getFullYear()}`
-        : `${montag.getDate()}. ${MONATSNAMEN_KURZ[montag.getMonth()]} – ${sonntag.getDate()}. ${MONATSNAMEN_KURZ[sonntag.getMonth()]} ${sonntag.getFullYear()}`;
-
-    document.getElementById("monatsNavigation").innerHTML = `
-        <button onclick="window.zeitraumWechseln(-1)" class="nav-button">‹</button>
-        <span class="zeitraum-titel">${titel}</span>
-        <button onclick="window.zeitraumWechseln(1)" class="nav-button">›</button>
-    `;
-
-    const heuteId = datumZuId(heute);
-
-    let zeilen = "";
-
-    for (let i = 0; i < 7; i++) {
-
-        const tagDatum = new Date(montag);
-        tagDatum.setDate(montag.getDate() + i);
-
-        const id = datumZuId(tagDatum);
-        const eintrag = tageDaten[id];
-        const personen = eintrag?.personen || [];
-        const aktivitaet = eintrag?.aktivitaet || "";
-        const feiertag = feiertagName(tagDatum);
-        const tagEreignisse = ereignisseFuerTag(id);
-        const tagVerschobeneEreignisse = verschobeneEreignisseFuerTag(id);
-
-        const chips = personen.length
-            ? personen.map(name => `<span class="person-chip">${escapeHtml(name)}</span>`).join("")
-            : `<span class="wochen-leer-hinweis">Niemand eingetragen</span>`;
-
-        const ereignisChips = (tagEreignisse.length || tagVerschobeneEreignisse.length)
-            ? `<div class="ereignis-chips">
-                    ${tagEreignisse.map(e => `
-                        <span class="ereignis-chip${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
-                            ${escapeHtml(e.titel)}
-                        </span>
-                    `).join("")}
-                    ${tagVerschobeneEreignisse.map(e => `
-                        <span class="ereignis-chip verschoben${e.projektId ? " projekt-verknuepft" : ""}" onclick="event.stopPropagation(); window.ereignisOeffnen('${e.id}')">
-                            ↦ ${escapeHtml(e.titel)}
-                        </span>
-                    `).join("")}
-                </div>`
-            : "";
-
-        const heuteKlasse = id === heuteId ? " heute" : "";
-        const ausgewaehltKlasse = ausgewaehlteTage.has(id) ? " ausgewaehlt" : "";
-        const feiertagKlasse = feiertag ? " feiertag" : "";
-
-        zeilen += `
-            <div class="wochen-zeile${heuteKlasse}${feiertagKlasse}${ausgewaehltKlasse}" onclick="window.toggleTag('${id}', event)">
-                <div class="wochen-datum">
-                    <span class="wochen-wochentag">${WOCHENTAGE[i]}</span>
-                    <span class="wochen-tagnummer">${tagDatum.getDate()}.${pad(tagDatum.getMonth() + 1)}.</span>
-                </div>
-                <div class="wochen-inhalt">
-                    ${feiertag ? `<div class="feiertag-label">${escapeHtml(feiertag)}</div>` : ""}
-                    <div class="person-chips">${chips}</div>
-                    ${ereignisChips}
-                    ${aktivitaet ? `<div class="tag-aktivitaet">${escapeHtml(aktivitaet)}</div>` : ""}
-                </div>
-            </div>
-        `;
-
-    }
-
-    document.getElementById("kalenderGrid").innerHTML = `
-        <div class="wochen-liste">
-            ${zeilen}
-        </div>
-    `;
-
-}
-
-function toggleTag(id, event) {
-
-    if (event?.shiftKey && letzterKlickId) {
-
-        // Shift-Klick: ganzen Bereich zwischen dem letzten Klick und
-        // diesem Tag mit derselben Aktion (hinzufügen/entfernen) belegen,
-        // die der letzte einzelne Klick ausgelöst hat.
-        const [von, bis] = [idZuDatum(letzterKlickId), idZuDatum(id)]
-            .sort((a, b) => a - b);
-
-        for (const tag = new Date(von); tag <= bis; tag.setDate(tag.getDate() + 1)) {
-
-            const tagId = datumZuId(tag);
-
-            if (letzteAktion === "entfernt") {
-                ausgewaehlteTage.delete(tagId);
-            } else {
-                ausgewaehlteTage.add(tagId);
-            }
-
-        }
-
-    } else if (ausgewaehlteTage.has(id)) {
-
-        ausgewaehlteTage.delete(id);
-        letzteAktion = "entfernt";
-        letzterKlickId = id;
-
-    } else {
-
-        ausgewaehlteTage.add(id);
-        letzteAktion = "hinzugefuegt";
-        letzterKlickId = id;
-
-    }
-
-    renderKalender();
-    renderAuswahlLeiste();
-
-}
-
-function auswahlAufheben() {
-
-    ausgewaehlteTage.clear();
-    letzterKlickId = null;
-    renderKalender();
-    renderAuswahlLeiste();
-
-}
-
-function formatDatumKurz(id) {
-
-    const [jahr, monat, tag] = id.split("-").map(Number);
-    return `${tag}. ${MONATSNAMEN_KURZ[monat - 1]}`;
-
-}
-
-function formatDatumLang(id) {
-
-    const [jahr, monat, tag] = id.split("-").map(Number);
-    return `${tag}. ${MONATSNAMEN[monat - 1]} ${jahr}`;
-
-}
-
-// Liefert die gemeinsame Personen-Liste, wenn ALLE ausgewählten Tage
-// exakt dieselbe Belegung haben (unabhängig von der Reihenfolge) – sonst
-// null. Nur dann ist "eine" Liste mit Entfernen-Buttons überhaupt
-// sinnvoll darstellbar.
-function gemeinsamePersonen() {
-
-    const ids = [...ausgewaehlteTage];
-
-    const listen = ids.map(id => (tageDaten[id]?.personen || []).slice().sort());
-    const erste = JSON.stringify(listen[0] || []);
-
-    const alleGleich = listen.every(liste => JSON.stringify(liste) === erste);
-
-    return alleGleich ? (listen[0] || []) : null;
-
-}
-
-// Liefert die gemeinsame Aktivität, wenn alle ausgewählten Tage denselben
-// Text haben – sonst "" (das Textfeld wird dann einfach leer angezeigt,
-// bis explizit gespeichert wird; nichts wird automatisch überschrieben).
-function gemeinsameAktivitaet() {
-
-    const ids = [...ausgewaehlteTage];
-    const werte = ids.map(id => tageDaten[id]?.aktivitaet || "");
-    const erste = werte[0] ?? "";
-
-    return werte.every(w => w === erste) ? erste : "";
-
-}
-
-function renderAuswahlLeiste() {
-
-    const box = document.getElementById("auswahlLeiste");
-
-    if (ausgewaehlteTage.size === 0) {
-        box.innerHTML = "";
+function spurZiehenStarten(e, spurEl) {
+
+    const neuTyp = spurEl.dataset.neu;
+
+    // Nur die Zeile/Spalte, für die gerade ein Verschiebedatum eingezeichnet
+    // wird, reagiert auf Ziehen – jede andere bestehende Ereignis-Spur bleibt
+    // in diesem Modus inaktiv (kein versehentliches Umbiegen eines anderen
+    // Ereignisses).
+    if (neuTyp === "ereignis-segment" && spurEl.dataset.id !== ereignisVerschiebeZeichnenId) {
         return;
     }
 
-    const ids = [...ausgewaehlteTage].sort();
-    const einzelTag = ids.length === 1;
+    e.preventDefault();
 
-    const titel = einzelTag
-        ? formatDatumLang(ids[0])
-        : `${ids.length} Tage ausgewählt`;
+    const rect = spurRechteck(spurEl);
+    const startKoordinate = zeigerKoordinate(e);
+    const startIdx = koordinateZuTagIndex(rect, startKoordinate);
+    const einzelpunkt = neuTyp === "notiz";
 
-    const datumChips = !einzelTag
-        ? `<div class="person-chips ausgewaehlte-tage-chips">
-               ${ids.map(id => `<span class="person-chip datum-chip">${formatDatumKurz(id)}</span>`).join("")}
-           </div>`
-        : "";
+    let vorschauEl = null;
+    let gezogen = false;
 
-    const personen = gemeinsamePersonen();
+    function aufBewegen(ev) {
 
-    let personenBereich;
+        if (einzelpunkt) {
+            return;
+        }
 
-    if (personen === null) {
+        const aktKoordinate = zeigerKoordinate(ev);
 
-        personenBereich = `<p class="hinweis-text">
-            Die ausgewählten Tage haben unterschiedliche Personen – wähle
-            nur Tage mit gleicher Belegung aus, um sie hier zu sehen und
-            zu entfernen.
-        </p>`;
+        if (!gezogen && Math.abs(aktKoordinate - startKoordinate) < ZIEH_SCHWELLE_PX) {
+            return;
+        }
 
-    } else if (personen.length === 0) {
+        gezogen = true;
 
-        personenBereich = `<p class="hinweis-text">Noch niemand eingetragen.</p>`;
+        const aktIdx = koordinateZuTagIndex(rect, aktKoordinate);
+        const lo = Math.min(startIdx, aktIdx);
+        const hi = Math.max(startIdx, aktIdx);
 
-    } else {
+        if (!vorschauEl) {
+            vorschauEl = document.createElement("div");
+            vorschauEl.className = "zl-balken-vorschau";
+            spurEl.appendChild(vorschauEl);
+        }
 
-        personenBereich = `
-            <ul class="personen-liste">
-                ${personen.map(name => `
-                    <li>
-                        ${escapeHtml(name)}
-                        <button
-                            class="entfernen-button"
-                            data-name="${escapeHtml(name)}"
-                            onclick="window.entfernePersonAusAuswahl(this.dataset.name)"
-                        >✕</button>
-                    </li>
-                `).join("")}
-            </ul>
-        `;
+        vorschauEl.style.cssText = rechteckStil(lo, hi);
 
     }
 
-    const aktivitaet = gemeinsameAktivitaet();
+    function aufLoslassen(ev) {
 
-    box.innerHTML = `
-        <div class="auswahl-panel">
+        window.removeEventListener("pointermove", aufBewegen);
+        window.removeEventListener("pointerup", aufLoslassen);
 
-            <h2>${titel}</h2>
-            ${datumChips}
+        if (vorschauEl) {
+            vorschauEl.remove();
+        }
 
-            ${personenBereich}
+        const aktIdx = einzelpunkt ? startIdx : koordinateZuTagIndex(rect, zeigerKoordinate(ev));
+        const lo = Math.min(startIdx, aktIdx);
+        const hi = Math.max(startIdx, aktIdx);
+        const vonId = tagIndexZuId(lo);
+        const bisId = tagIndexZuId(hi);
 
-            <div class="name-hinzufuegen-reihe">
-                <input
-                    type="text"
-                    id="nameFeld"
-                    placeholder="Name"
-                    onkeydown="if(event.key==='Enter'){event.preventDefault();window.nameHinzufuegen();}"
-                >
-                <button onclick="window.nameHinzufuegen()" class="hinzufuegen-button">
-                    Hinzufügen
-                </button>
-            </div>
+        if (neuTyp === "person-neu") {
+            personDialogOeffnen({ vonId, bisId });
+        } else if (neuTyp === "person-segment") {
+            personDialogOeffnen({ alterName: spurEl.dataset.name, alteTage: [], vonId, bisId });
+        } else if (neuTyp === "ereignis-neu") {
+            neuesEreignis({ vonId, bisId });
+        } else if (neuTyp === "ereignis-segment") {
+            verschiebedatumUebernehmen(vonId, bisId);
+        } else if (neuTyp === "notiz") {
+            tagesnotizDialogOeffnen(vonId);
+        }
 
-            <label class="aktivitaet-label">
-                Aktivität an ${einzelTag ? "diesem Tag" : "diesen Tagen"}:
-                <textarea id="aktivitaetFeld" rows="3">${escapeHtml(aktivitaet)}</textarea>
-            </label>
+    }
 
-            <button onclick="window.aktivitaetSpeichern()">
-                Aktivität speichern
-            </button>
-
-            <button onclick="window.auswahlAufheben()" class="abbrechen-button">
-                Auswahl aufheben
-            </button>
-
-        </div>
-    `;
+    window.addEventListener("pointermove", aufBewegen);
+    window.addEventListener("pointerup", aufLoslassen);
 
 }
 
-async function nameHinzufuegen() {
+// --- Ziehen: bestehenden Balken verschieben/Enden anpassen ---
 
-    const feld = document.getElementById("nameFeld");
-    const name = feld.value.trim();
+function balkenZiehenStarten(e, balkenEl) {
 
-    if (!name) {
-        alert("Bitte einen Namen eingeben.");
+    // Projekt-verknüpfte Ereignisse sind nur über die Projektseite
+    // veränderbar – hier nur anklickbar (öffnet den Hinweis-Dialog).
+    if (balkenEl.dataset.projektVerknuepft === "1") {
+        balkenAnklicken(balkenEl);
+        return;
+    }
+
+    e.preventDefault();
+
+    const rect = spurRechteck(balkenEl.parentElement);
+    const startKoordinate = zeigerKoordinate(e);
+    const griffEl = e.target.closest("[data-griff]");
+    const modus = griffEl ? griffEl.dataset.griff : "verschieben"; // "start" | "ende" | "verschieben"
+
+    const startIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.vonId));
+    const endIdx0 = clampIdx(idZuTagIndex(balkenEl.dataset.bisId));
+    let bewegt = false;
+    let vorschauStart = startIdx0;
+    let vorschauEnd = endIdx0;
+
+    function aufBewegen(ev) {
+
+        const deltaTage = Math.round((zeigerKoordinate(ev) - startKoordinate) / zellGroesse);
+
+        if (deltaTage !== 0) {
+            bewegt = true;
+        }
+
+        let neuStart = startIdx0;
+        let neuEnd = endIdx0;
+
+        if (modus === "verschieben") {
+            const laenge = endIdx0 - startIdx0;
+            neuStart = clampIdx(startIdx0 + deltaTage);
+            neuEnd = neuStart + laenge;
+            if (neuEnd > totalTage - 1) {
+                neuEnd = totalTage - 1;
+                neuStart = neuEnd - laenge;
+            }
+        } else if (modus === "start") {
+            neuStart = Math.min(clampIdx(startIdx0 + deltaTage), endIdx0);
+        } else if (modus === "ende") {
+            neuEnd = Math.max(clampIdx(endIdx0 + deltaTage), startIdx0);
+        }
+
+        vorschauStart = neuStart;
+        vorschauEnd = neuEnd;
+
+        if (balkenEl.dataset.typ === "notiz") {
+            balkenEl.style.cssText = punktStil(neuStart);
+        } else {
+            balkenEl.style.cssText = rechteckStil(neuStart, neuEnd);
+        }
+
+    }
+
+    function aufLoslassen() {
+
+        window.removeEventListener("pointermove", aufBewegen);
+        window.removeEventListener("pointerup", aufLoslassen);
+
+        if (!bewegt) {
+            balkenAnklicken(balkenEl);
+            return;
+        }
+
+        balkenAendernSpeichern(balkenEl, vorschauStart, vorschauEnd);
+
+    }
+
+    window.addEventListener("pointermove", aufBewegen);
+    window.addEventListener("pointerup", aufLoslassen);
+
+}
+
+function balkenAnklicken(balkenEl) {
+
+    const typ = balkenEl.dataset.typ;
+
+    if (typ === "person") {
+        personDialogOeffnen({
+            alterName: balkenEl.dataset.name,
+            alteTage: tageIdsZwischen(balkenEl.dataset.vonId, balkenEl.dataset.bisId),
+            vonId: balkenEl.dataset.vonId,
+            bisId: balkenEl.dataset.bisId
+        });
+    } else if (typ === "ereignis") {
+        ereignisOeffnen(balkenEl.dataset.id);
+    } else if (typ === "notiz") {
+        tagesnotizDialogOeffnen(balkenEl.dataset.id);
+    }
+
+}
+
+async function balkenAendernSpeichern(balkenEl, neuStart, neuEnd) {
+
+    const typ = balkenEl.dataset.typ;
+    const vonId = tagIndexZuId(neuStart);
+    const bisId = tagIndexZuId(neuEnd);
+
+    if (typ === "person") {
+
+        const alteTage = tageIdsZwischen(balkenEl.dataset.vonId, balkenEl.dataset.bisId);
+        await personBalkenSpeichern({ alterName: balkenEl.dataset.name, alteTage, namenText: balkenEl.dataset.name, vonId, bisId });
+
+    } else if (typ === "ereignis") {
+
+        const daten = balkenEl.dataset.segment === "haupt"
+            ? { vonDatum: vonId, bisDatum: bisId }
+            : { verschiebeVon: vonId, verschiebeBis: bisId };
+
+        await setDoc(doc(db, "ereignisse", balkenEl.dataset.id), daten, { merge: true });
+
+    } else if (typ === "notiz") {
+
+        const alteId = balkenEl.dataset.id;
+
+        if (vonId === alteId) {
+            render();
+            return;
+        }
+
+        const text = tageDaten[alteId]?.aktivitaet || "";
+        const batch = writeBatch(db);
+        batch.set(doc(db, "tage", alteId), { aktivitaet: "" }, { merge: true });
+        batch.set(doc(db, "tage", vonId), { aktivitaet: text }, { merge: true });
+        await batch.commit();
+
+    }
+
+}
+
+function aufZeigerAbwaerts(e) {
+
+    const balken = e.target.closest("[data-balken]");
+
+    if (balken) {
+        balkenZiehenStarten(e, balken);
+        return;
+    }
+
+    const spur = e.target.closest("[data-neu]");
+
+    if (spur) {
+        spurZiehenStarten(e, spur);
+    }
+
+}
+
+// --- Personen-Dialog ---
+
+function personDialogOeffnen({ alterName = null, alteTage = [], vonId, bisId }) {
+
+    bearbeiteterPersonBalken = { alterName, alteTage };
+    const istBearbeitung = alteTage.length > 0;
+
+    document.getElementById("personTitelUeberschrift").textContent = istBearbeitung
+        ? "Eintrag bearbeiten"
+        : alterName ? `Weiterer Zeitraum für ${alterName}` : "Person(en) eintragen";
+
+    document.getElementById("personNameFeld").value = alterName || "";
+    document.getElementById("personVonFeld").value = vonId;
+    document.getElementById("personBisFeld").value = bisId;
+
+    document.getElementById("personAktionen").innerHTML = `
+        <button onclick="window.personBalkenSpeichernAusFormular()">Speichern</button>
+        ${istBearbeitung ? `<button type="button" class="loeschen-button" onclick="window.personBalkenLoeschen()">Löschen</button>` : ""}
+        <button type="button" class="abbrechen-button" onclick="window.schliessePersonOverlay()">Abbrechen</button>
+    `;
+
+    document.getElementById("personOverlay").classList.remove("hidden");
+    document.getElementById("personNameFeld").focus();
+
+}
+
+function neuePersonButton() {
+    personDialogOeffnen({ vonId: datumZuId(heute), bisId: datumZuId(tagePlus(heute, 6)) });
+}
+
+function schliessePersonOverlay() {
+    document.getElementById("personOverlay").classList.add("hidden");
+    bearbeiteterPersonBalken = null;
+}
+
+async function personBalkenSpeichern({ alterName, alteTage, namenText, vonId, bisId }) {
+
+    const neueNamen = [...new Set(namenText.split(",").map(s => s.trim()).filter(Boolean))];
+
+    if (!neueNamen.length) {
+        return;
+    }
+
+    const neueTage = tageIdsZwischen(vonId, bisId);
+    const batch = writeBatch(db);
+
+    if (alterName) {
+        alteTage.forEach(id => batch.set(doc(db, "tage", id), { personen: arrayRemove(alterName) }, { merge: true }));
+    }
+
+    neueTage.forEach(id => {
+        neueNamen.forEach(name => batch.set(doc(db, "tage", id), { personen: arrayUnion(name) }, { merge: true }));
+    });
+
+    await batch.commit();
+
+}
+
+async function personBalkenSpeichernAusFormular() {
+
+    const namenText = document.getElementById("personNameFeld").value.trim();
+    const vonId = document.getElementById("personVonFeld").value;
+    let bisId = document.getElementById("personBisFeld").value;
+
+    if (!namenText || !vonId) {
+        alert("Bitte Name(n) und Startdatum angeben.");
+        return;
+    }
+
+    if (!bisId || bisId < vonId) {
+        bisId = vonId;
+    }
+
+    await personBalkenSpeichern({
+        alterName: bearbeiteterPersonBalken?.alterName || null,
+        alteTage: bearbeiteterPersonBalken?.alteTage || [],
+        namenText,
+        vonId,
+        bisId
+    });
+
+    schliessePersonOverlay();
+
+}
+
+async function personBalkenLoeschen() {
+
+    if (!bearbeiteterPersonBalken?.alterName) {
+        return;
+    }
+
+    if (!confirm(`"${bearbeiteterPersonBalken.alterName}" wirklich aus diesem Zeitraum entfernen?`)) {
         return;
     }
 
     const batch = writeBatch(db);
 
-    ausgewaehlteTage.forEach(id => {
-        batch.set(doc(db, "tage", id), { personen: arrayUnion(name) }, { merge: true });
+    bearbeiteterPersonBalken.alteTage.forEach(id => {
+        batch.set(doc(db, "tage", id), { personen: arrayRemove(bearbeiteterPersonBalken.alterName) }, { merge: true });
     });
 
     await batch.commit();
-
-    // Auswahl bleibt bestehen, damit gleich die nächste Person ergänzt
-    // werden kann – nur das Eingabefeld wird für die nächste Eingabe
-    // geleert.
-    feld.value = "";
-    feld.focus();
+    schliessePersonOverlay();
 
 }
 
-async function entfernePersonAusAuswahl(name) {
-
-    const batch = writeBatch(db);
-
-    ausgewaehlteTage.forEach(id => {
-        batch.set(doc(db, "tage", id), { personen: arrayRemove(name) }, { merge: true });
-    });
-
-    await batch.commit();
-
-}
-
-async function aktivitaetSpeichern() {
-
-    const text = document.getElementById("aktivitaetFeld").value.trim();
-    const batch = writeBatch(db);
-
-    ausgewaehlteTage.forEach(id => {
-        batch.set(doc(db, "tage", id), { aktivitaet: text }, { merge: true });
-    });
-
-    await batch.commit();
-
-}
-
-// --- Ereignis-Editor ---
+// --- Ereignis-Dialog ---
 
 function ereignisFormularZuruecksetzen() {
 
@@ -841,33 +1263,37 @@ function ereignisFormularZuruecksetzen() {
 
 }
 
-function neuesEreignis() {
+function neuesEreignis(prefill) {
 
     bearbeitetesEreignisId = null;
 
-    const heuteId = datumZuId(heute);
+    const vonId = prefill?.vonId || datumZuId(heute);
+    const bisId = prefill?.bisId || vonId;
 
     document.getElementById("ereignisTitelUeberschrift").textContent = "Neues Ereignis";
     ereignisFormularZuruecksetzen();
 
     document.getElementById("ereignisTitelFeld").value = "";
-    document.getElementById("ereignisVonFeld").value = heuteId;
-    document.getElementById("ereignisBisFeld").value = heuteId;
+    document.getElementById("ereignisVonFeld").value = vonId;
+    document.getElementById("ereignisBisFeld").value = bisId;
     document.getElementById("ereignisVerschiebeVonFeld").value = "";
     document.getElementById("ereignisVerschiebeBisFeld").value = "";
 
     document.getElementById("ereignisAktionen").innerHTML = `
         <button onclick="window.ereignisSpeichern()">Speichern</button>
+        <button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>
         <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
     `;
 
     document.getElementById("ereignisOverlay").classList.remove("hidden");
+    document.getElementById("ereignisTitelFeld").focus();
 
 }
 
 function ereignisOeffnen(id) {
 
     const ereignis = ereignisse.find(e => e.id === id);
+
     if (!ereignis) {
         return;
     }
@@ -908,6 +1334,7 @@ function ereignisOeffnen(id) {
 
         document.getElementById("ereignisAktionen").innerHTML = `
             <button onclick="window.ereignisSpeichern()">Speichern</button>
+            <button type="button" class="abbrechen-button" onclick="window.verschiebedatumZeichnenStarten()">Verschiebedatum zeichnen…</button>
             <button type="button" class="loeschen-button" onclick="window.ereignisLoeschen()">Löschen</button>
             <button type="button" class="abbrechen-button" onclick="window.schliesseEreignisOverlay()">Abbrechen</button>
         `;
@@ -922,7 +1349,7 @@ function schliesseEreignisOverlay() {
     document.getElementById("ereignisOverlay").classList.add("hidden");
 }
 
-async function ereignisSpeichern() {
+async function ereignisGrunddatenSpeichernOhneSchliessen() {
 
     const titel = document.getElementById("ereignisTitelFeld").value.trim();
     const von = document.getElementById("ereignisVonFeld").value;
@@ -930,7 +1357,7 @@ async function ereignisSpeichern() {
 
     if (!titel || !von) {
         alert("Bitte Titel und Startdatum angeben.");
-        return;
+        return null;
     }
 
     if (!bis || bis < von) {
@@ -960,9 +1387,16 @@ async function ereignisSpeichern() {
     }
 
     await setDoc(doc(db, "ereignisse", id), daten, { merge: true });
+    bearbeitetesEreignisId = id;
+    return id;
 
-    schliesseEreignisOverlay();
+}
 
+async function ereignisSpeichern() {
+    const id = await ereignisGrunddatenSpeichernOhneSchliessen();
+    if (id) {
+        schliesseEreignisOverlay();
+    }
 }
 
 async function ereignisLoeschen() {
@@ -976,13 +1410,98 @@ async function ereignisLoeschen() {
     }
 
     await deleteDoc(doc(db, "ereignisse", bearbeitetesEreignisId));
-
     schliesseEreignisOverlay();
 
 }
 
-// Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
-// (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
+// --- Verschiebedatum zeichnen ---
+
+function zeichenHinweisAnzeigen(text) {
+    document.getElementById("zlZeichenHinweisText").textContent = text;
+    document.getElementById("zlZeichenHinweis").classList.remove("hidden");
+}
+
+function zeichenHinweisVerbergen() {
+    document.getElementById("zlZeichenHinweis").classList.add("hidden");
+}
+
+async function verschiebedatumZeichnenStarten() {
+
+    const titel = document.getElementById("ereignisTitelFeld").value.trim();
+    const id = await ereignisGrunddatenSpeichernOhneSchliessen();
+
+    if (!id) {
+        return;
+    }
+
+    schliesseEreignisOverlay();
+    ereignisVerschiebeZeichnenId = id;
+    zeichenHinweisAnzeigen(`Verschiebedatum für "${titel}": Balken in der Ereigniszeile einzeichnen …`);
+    render();
+
+}
+
+function verschiebedatumZeichnenAbbrechen() {
+    ereignisVerschiebeZeichnenId = null;
+    zeichenHinweisVerbergen();
+    render();
+}
+
+async function verschiebedatumUebernehmen(vonId, bisId) {
+
+    const id = ereignisVerschiebeZeichnenId;
+    ereignisVerschiebeZeichnenId = null;
+    zeichenHinweisVerbergen();
+
+    if (!id) {
+        return;
+    }
+
+    await setDoc(doc(db, "ereignisse", id), { verschiebeVon: vonId, verschiebeBis: bisId }, { merge: true });
+    render();
+
+}
+
+// --- Tagesnotiz-Dialog ---
+
+function tagesnotizDialogOeffnen(id) {
+
+    bearbeitetesNotizDatum = id;
+    const text = tageDaten[id]?.aktivitaet || "";
+
+    document.getElementById("notizTitelUeberschrift").textContent = text ? "Tagesnotiz bearbeiten" : "Neue Tagesnotiz";
+    document.getElementById("notizDatumAnzeige").textContent = formatDatumLang(id);
+    document.getElementById("notizTextFeld").value = text;
+
+    document.getElementById("notizAktionen").innerHTML = `
+        <button onclick="window.notizSpeichern()">Speichern</button>
+        ${text ? `<button type="button" class="loeschen-button" onclick="window.notizLoeschen()">Löschen</button>` : ""}
+        <button type="button" class="abbrechen-button" onclick="window.schliesseNotizOverlay()">Abbrechen</button>
+    `;
+
+    document.getElementById("notizOverlay").classList.remove("hidden");
+    document.getElementById("notizTextFeld").focus();
+
+}
+
+function schliesseNotizOverlay() {
+    document.getElementById("notizOverlay").classList.add("hidden");
+    bearbeitetesNotizDatum = null;
+}
+
+async function notizSpeichern() {
+    const text = document.getElementById("notizTextFeld").value.trim();
+    await setDoc(doc(db, "tage", bearbeitetesNotizDatum), { aktivitaet: text }, { merge: true });
+    schliesseNotizOverlay();
+}
+
+async function notizLoeschen() {
+    await setDoc(doc(db, "tage", bearbeitetesNotizDatum), { aktivitaet: "" }, { merge: true });
+    schliesseNotizOverlay();
+}
+
+// --- Hilfe-Overlay ---
+
 function hilfeOeffnen() {
     document.getElementById("hilfeOverlay").classList.remove("hidden");
 }
@@ -993,36 +1512,26 @@ function hilfeSchliessen() {
 
 window.hilfeOeffnen = hilfeOeffnen;
 window.hilfeSchliessen = hilfeSchliessen;
-window.ansichtWechseln = ansichtWechseln;
-window.zeitraumWechseln = zeitraumWechseln;
 window.heuteAnzeigen = heuteAnzeigen;
-window.toggleTag = toggleTag;
-window.auswahlAufheben = auswahlAufheben;
-window.nameHinzufuegen = nameHinzufuegen;
-window.entfernePersonAusAuswahl = entfernePersonAusAuswahl;
-window.aktivitaetSpeichern = aktivitaetSpeichern;
+window.neuePersonButton = neuePersonButton;
+window.schliessePersonOverlay = schliessePersonOverlay;
+window.personBalkenSpeichernAusFormular = personBalkenSpeichernAusFormular;
+window.personBalkenLoeschen = personBalkenLoeschen;
 window.neuesEreignis = neuesEreignis;
 window.ereignisOeffnen = ereignisOeffnen;
 window.schliesseEreignisOverlay = schliesseEreignisOverlay;
 window.ereignisSpeichern = ereignisSpeichern;
 window.ereignisLoeschen = ereignisLoeschen;
+window.verschiebedatumZeichnenStarten = verschiebedatumZeichnenStarten;
+window.verschiebedatumZeichnenAbbrechen = verschiebedatumZeichnenAbbrechen;
+window.schliesseNotizOverlay = schliesseNotizOverlay;
+window.notizSpeichern = notizSpeichern;
+window.notizLoeschen = notizLoeschen;
 
 init();
 
-// Beim Wechsel zwischen schmalem und breitem Fenster (z.B. Browserfenster
-// vergrössern) die Chip-Anzahl pro Tag neu berechnen.
-breitAnsichtMedia.addEventListener("change", () => {
-    renderKalender();
-});
-
 if ("serviceWorker" in navigator) {
-
-    navigator.serviceWorker
-        .register("./service-worker.js")
-        .then(() => {
-
-            console.log("Kalender Service Worker registriert");
-
-        });
-
+    navigator.serviceWorker.register("./service-worker.js").then(() => {
+        console.log("Kalender Service Worker registriert");
+    });
 }

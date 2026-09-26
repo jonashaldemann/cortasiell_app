@@ -1,4 +1,4 @@
-const CACHE_NAME = "cortasiell-kalender-v4";
+const CACHE_NAME = "cortasiell-kalender-v5";
 
 const FILES_TO_CACHE = [
     "./",
