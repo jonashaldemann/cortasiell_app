@@ -385,6 +385,10 @@ textarea {
 
 .zl-label-zelle {
     flex: 0 0 130px; /* LABEL_GROESSE */
+    box-sizing: border-box; /* sonst zählt padding oben drauf: 130px+2*10px=150px -
+       die Zeile stünde damit 20px versetzt zu Kopfzeile/Gitterlinien (die
+       LABEL_GROESSE ungepolstert als 130px annehmen), und JEDER Balken
+       läge entsprechend daneben, siehe Feedback */
     position: sticky;
     left: 0;
     z-index: 2;
@@ -663,6 +667,9 @@ textarea {
     top: 0;
     z-index: 4;
     height: 130px; /* LABEL_GROESSE */
+    box-sizing: border-box; /* gleicher Bug wie .zl-label-zelle, nur vertikal:
+       ohne das wird die Spalte 130px+2*6px=142px hoch statt 130px und liegt
+       damit 12px versetzt zur Datumsleiste/den Gitterlinien */
     background: var(--surface-2);
     border-bottom: 1px solid var(--border);
     display: flex;
