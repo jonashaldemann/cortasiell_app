@@ -148,7 +148,7 @@ function istVorhanden(erfassungstyp, info) {
 // fehlerhafte) Versuch zurückgegeben wird.
 function rufeGeminiMitRetry(url, options, maxVersuche) {
 
-  maxVersuche = maxVersuche || 3;
+  maxVersuche = maxVersuche || 5;
 
   for (let versuch = 1; versuch <= maxVersuche; versuch++) {
 
@@ -159,7 +159,7 @@ function rufeGeminiMitRetry(url, options, maxVersuche) {
       return antwort;
     }
 
-    Utilities.sleep(2000 * versuch); // 2s, 4s, ...
+    Utilities.sleep(Math.min(3000 * versuch, 10000)); // 3s, 6s, 9s, 10s, ...
 
   }
 
