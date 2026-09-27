@@ -197,13 +197,16 @@ function renderAktiveListe(aktive) {
         return;
     }
 
+    // Bewusst KEIN Löschen-Button hier: ein offener Eintrag lässt sich nur
+    // abhaken, nicht direkt entfernen - sonst könnte er mit einem
+    // einzigen Fehlklick verschwinden (siehe Feedback). Löschen geht erst
+    // nach dem Abhaken, per "Alle löschen" unten (mit Bestätigung).
     box.innerHTML = aktive.map(e => `
         <div class="einkaufs-zeile" data-id="${e.id}">
             <div class="zeile-griff" title="Zum Verschieben ziehen">⠿</div>
             <input type="checkbox" onchange="window.erledigtGeaendert('${e.id}', this.checked)">
             ${renderZeileText(e)}
             <div class="zeile-pin">${renderPinBereich(e)}</div>
-            <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
         </div>
     `).join("");
 
