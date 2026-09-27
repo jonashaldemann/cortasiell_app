@@ -78,7 +78,6 @@ body {
 .kopfzeile {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
 }
@@ -87,6 +86,7 @@ h1 {
     font-family: var(--font-medium);
     font-size: 1.6rem;
     margin: 0;
+    flex: 1;
 }
 
 .produkt {

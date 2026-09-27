@@ -127,6 +127,15 @@ h1 {
     background: var(--surface-2);
 }
 
+/* Auf dem Handy braucht die KI-Anfrage (mehrere Sekunden Wartezeit,
+   auf Mobilfunk potenziell unzuverlässig) mehr Geduld als sie dort
+   meist vorhanden ist - deshalb nur im Browser anbieten. */
+@media (max-width: 899px) {
+    .ki-vorschlaege-button {
+        display: none;
+    }
+}
+
 .rezept-karte {
     background: var(--surface-2);
     border-radius: 12px;
