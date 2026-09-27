@@ -19,7 +19,7 @@ const STICKY_NAME_KEY = "cortasiell_menuplan_zustaendigkeit";
 // von dort aus die Anthropic-API auf (Key liegt serverseitig in den
 // Script-Properties, nie im Client-Code).
 const INVENTAR_APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbzosmOtgS7rsXidxsoRodPDiJzAt6CBSEFeLkMZUBTK10O3r6v10t1E9Qfn4DlMF9Na_g/exec";
+    "https://script.google.com/macros/s/AKfycbyVwnfs4p18AwLoe6nPTRh6Du6nZTD8B7PnPYpmR2etwV8bAZz4csgj0P7cglCt99Rtyw/exec";
 
 const heute = new Date();
 

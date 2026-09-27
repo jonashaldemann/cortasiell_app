@@ -218,8 +218,13 @@ function holeMenuvorschlaege() {
     "zusätzlichen Zutaten nötig sind).";
 
   // "gemini-2.5-flash" ist für neue Nutzer nicht mehr verfügbar (Stand
-  // September 2026, Google-Fehlermeldung empfiehlt "gemini-3.8-flash").
-  const modell = "gemini-3.8-flash";
+  // September 2026, Google-Fehlermeldung empfiehlt "gemini-3.8-flash") -
+  // das feste Versionsdatum hatte aber wiederholt "high demand"-503-Fehler
+  // (vermutlich ein sehr neues Modell mit noch knapper Kapazität). Der
+  // rollende Alias "gemini-flash-latest" zeigt immer auf das aktuell von
+  // Google empfohlene, breiter verfügbare Flash-Modell statt auf eine
+  // konkrete (möglicherweise knappe oder später veraltete) Version.
+  const modell = "gemini-flash-latest";
 
   const antwort = rufeGeminiMitRetry(
     "https://generativelanguage.googleapis.com/v1beta/models/" + modell + ":generateContent",
