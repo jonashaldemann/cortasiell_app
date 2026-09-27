@@ -111,7 +111,14 @@ h1 {
     text-overflow: ellipsis;
 }
 
-.adresse-tel,
+.adresse-tel {
+    font-size: 0.85rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .adresse-mail {
     font-size: 0.85rem;
     color: var(--akzent-adressen);
@@ -121,7 +128,6 @@ h1 {
     text-overflow: ellipsis;
 }
 
-.adresse-tel:hover,
 .adresse-mail:hover {
     text-decoration: underline;
 }
@@ -148,6 +154,42 @@ h1 {
 .row-action:hover {
     color: var(--akzent-adressen-dunkel);
     background: none;
+}
+
+.papierkorb-kopf {
+    max-width: min(1200px, 96vw);
+    margin: 20px auto 8px;
+    font-family: var(--font-medium);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.adresse-zeile.papierkorb {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    opacity: 0.55;
+    cursor: default;
+}
+
+.adresse-zeile.papierkorb:hover {
+    background: var(--surface);
+}
+
+.papierkorb-titel {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+
+.papierkorb-aktionen {
+    display: flex;
+    gap: 4px;
+    flex: none;
 }
 
 /* Overlay/Sheet-Basis kommt aus shared/theme.css. */

@@ -71,7 +71,7 @@ service cloud.firestore {
       allow read: if true;
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
-          ['bezeichnung', 'name', 'vorname', 'ort', 'tel', 'mail', 'webseite', 'erstelltAm'])
+          ['bezeichnung', 'name', 'vorname', 'ort', 'tel', 'mail', 'webseite', 'erstelltAm', 'geloescht'])
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 200;
     }
