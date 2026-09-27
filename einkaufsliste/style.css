@@ -17,6 +17,14 @@ body {
     padding: 20px;
 }
 
+/* Im Browser ist mehr Breite vorhanden als auf dem Handy - genutzt, damit
+   Text, Tag und Aktionen öfter auf einer Zeile Platz finden. */
+@media (min-width: 900px) {
+    .container {
+        max-width: 720px;
+    }
+}
+
 .kopfzeile {
     display: flex;
     align-items: center;
@@ -107,8 +115,8 @@ h1 {
 }
 
 .zeile-text {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 160px;
+    min-width: 100px;
     font-size: 0.95rem;
     word-break: break-word;
 }
@@ -139,13 +147,12 @@ h1 {
     box-sizing: border-box;
 }
 
-/* Pin rutscht standardmässig auf eine eigene Zeile unter den Text (statt
-   rechts daneben) – so bleibt bei längeren Einträgen die volle Breite für
-   den Text. Der Griff+Checkbox-Einzug (16+10+20+10) wird nachgebildet,
-   damit der Pin optisch unter dem Text statt unter dem Griff beginnt. */
+/* Bleibt in der Regel auf derselben Zeile wie Text/Checkbox/Löschen -
+   .zeile-text hat einen Mindestbreite, ab der die Zeile umbricht statt
+   den Pin einfach wegzuquetschen; nur bei besonders langem Text rutscht
+   er so auf eine eigene Zeile. */
 .zeile-pin {
-    flex: 0 0 100%;
-    margin-left: 56px;
+    flex: none;
     display: flex;
     align-items: center;
     gap: 6px;

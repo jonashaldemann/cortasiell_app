@@ -19,6 +19,21 @@ let aktiverFilterName = null;
 let ziehElement = null; // die gerade gezogene .einkaufs-zeile
 let dropErfolgreich = false;
 
+// Gleiche Handy/Browser-Grenze wie in kalender.js/projekte.js. Auf dem
+// Handy ist der angepinnte Name in der Liste (nicht im Filter) gekürzt,
+// damit Text/Tag/Aktionen eher auf einer Zeile bleiben.
+const handyBreiteMedia = window.matchMedia("(max-width: 899px)");
+
+function kuerzeTagFuerListe(name) {
+
+    if (!handyBreiteMedia.matches || name.length <= 4) {
+        return name;
+    }
+
+    return name.slice(0, 1) + "…" + name.slice(-1);
+
+}
+
 function escapeHtml(text) {
 
     return String(text ?? "")
@@ -44,6 +59,8 @@ function init() {
             `<p class="hinweis-text">⚠️ Einkaufsliste konnte nicht geladen werden.</p>`;
 
     });
+
+    handyBreiteMedia.addEventListener("change", render);
 
 }
 
@@ -146,8 +163,8 @@ function renderPinBereich(eintrag) {
     if (eintrag.angepinnterName) {
 
         return `
-            <span class="pin-chip" onclick="window.namePinOeffnen('${eintrag.id}')">
-                📌 ${escapeHtml(eintrag.angepinnterName)}
+            <span class="pin-chip" onclick="window.namePinOeffnen('${eintrag.id}')" title="${escapeHtml(eintrag.angepinnterName)}">
+                📌 ${escapeHtml(kuerzeTagFuerListe(eintrag.angepinnterName))}
             </span>
         `;
 
@@ -178,8 +195,8 @@ function renderAktiveListe(aktive) {
             <div class="zeile-griff" title="Zum Verschieben ziehen">⠿</div>
             <input type="checkbox" onchange="window.erledigtGeaendert('${e.id}', this.checked)">
             ${renderZeileText(e)}
-            <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
             <div class="zeile-pin">${renderPinBereich(e)}</div>
+            <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
         </div>
     `).join("");
 
@@ -205,8 +222,8 @@ function renderErledigtBereich(erledigte) {
                     <div class="zeile-griff-platzhalter"></div>
                     <input type="checkbox" checked onchange="window.erledigtGeaendert('${e.id}', this.checked)">
                     ${renderZeileText(e)}
+                    <div class="zeile-pin">${e.angepinnterName ? `<span class="pin-chip" title="${escapeHtml(e.angepinnterName)}">📌 ${escapeHtml(kuerzeTagFuerListe(e.angepinnterName))}</span>` : ""}</div>
                     <button class="row-action" onclick="window.elementLoeschen('${e.id}')" title="Entfernen">✕</button>
-                    <div class="zeile-pin">${e.angepinnterName ? `<span class="pin-chip">📌 ${escapeHtml(e.angepinnterName)}</span>` : ""}</div>
                 </div>
             `).join("")}
         </div>
