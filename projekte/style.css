@@ -132,6 +132,7 @@ h1 {
 .karte-griff {
     color: rgba(255, 255, 255, 0.7);
     cursor: grab;
+    touch-action: none; /* sonst hijackt Touch-Scrollen die Ziehgeste */
 }
 
 .karte-titel {

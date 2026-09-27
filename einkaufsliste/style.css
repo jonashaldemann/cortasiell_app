@@ -106,6 +106,7 @@ h1 {
     color: var(--text-muted);
     cursor: grab;
     text-align: center;
+    touch-action: none; /* sonst hijackt Touch-Scrollen die Ziehgeste */
 }
 
 .einkaufs-zeile input[type="checkbox"] {

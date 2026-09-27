@@ -107,6 +107,7 @@ h1 {
 .notiz-griff {
     color: var(--text-muted);
     cursor: grab;
+    touch-action: none; /* sonst hijackt Touch-Scrollen die Ziehgeste */
 }
 
 .notiz-griff.unsichtbar {

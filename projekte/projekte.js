@@ -12,6 +12,7 @@ import {
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { exportProjektPdf } from "./projekte-pdf.js";
+import { verschiebbarMachen } from "../shared/drag-reorder.js";
 
 // Eigenständiges Apps-Script-Deployment (unabhängig vom Inventar-Sync),
 // nimmt Datei-Uploads entgegen und legt sie in Google Drive ab – siehe
@@ -40,9 +41,6 @@ let ausgewaehlteDatei = null;
 let dateiEntfernen = false;
 
 let statusConfigEntwurf = []; // [{ name, farbe }], Arbeitskopie im Overlay
-
-let ziehElement = null; // die gerade gezogene .projekt-karte
-let dropErfolgreich = false;
 
 let statusZiehElement = null;
 let statusDropErfolgreich = false;
@@ -134,12 +132,28 @@ function dateiLoeschen(dateiId) {
 
 }
 
+let projekteDrag;
+
 function init() {
+
+    projekteDrag = verschiebbarMachen({
+        container: document.getElementById("projekteListe"),
+        itemSelector: ".projekt-karte",
+        griffSelector: ".karte-griff",
+        onDrop: projektReihenfolgeGespeichert
+    });
 
     onSnapshot(query(collection(db, "projekte"), orderBy("reihenfolge")), snapshot => {
 
         projekte = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderListe();
+
+        // Ein Snapshot-Update, das genau während einer Ziehgeste eintrifft,
+        // würde die Liste per innerHTML ersetzen und damit den Knoten unter
+        // dem Zeiger zerstören - deshalb während des Verschiebens zurück-
+        // stellen; sobald es endet, kommt ohnehin ein weiteres Update.
+        if (!projekteDrag.istAktiv()) {
+            renderListe();
+        }
 
     }, error => {
 
@@ -155,7 +169,9 @@ function init() {
             ? statusOptionenNormalisieren(snapshot.data().optionen)
             : STANDARD_STATUS.slice();
 
-        renderListe();
+        if (!projekteDrag.istAktiv()) {
+            renderListe();
+        }
 
         if (!document.getElementById("editorOverlay").classList.contains("hidden")) {
             renderStatusSelect(document.getElementById("inputStatus"), aktuellerBearbeiteterStatus());
@@ -231,12 +247,7 @@ function renderProjektKarte(p, istPapierkorb) {
     return `
         <div class="projekt-karte"
             style="background:${farbeFuerStatus(p.status)}"
-            draggable="true"
             data-id="${p.id}"
-            ondragstart="window.dragStart(event)"
-            ondragover="window.dragOver(event)"
-            ondrop="window.dragDrop(event)"
-            ondragend="window.dragEnd(event)"
             onclick="window.projektBearbeiten('${p.id}')"
         >
             <div class="karte-griff" title="Zum Verschieben ziehen">⠿</div>
@@ -259,73 +270,9 @@ function renderProjektKarte(p, istPapierkorb) {
 
 }
 
-function alleKartenElemente() {
-    return [...document.querySelectorAll("#projekteListe .projekt-karte")];
-}
-
-// Verschiebt beim Ziehen die tatsächliche Karte live an die Zielposition
-// (statt Nachbarn per Rand auseinanderzudrücken). Das ist die robustere
-// Standard-Technik: sie kommt ohne wiederholtes Neu-Berechnen von
-// Rand-Abständen aus, die sich bei jedem dragover selbst wieder
-// verschieben würden (genau das führte vorher zum Wackeln, weil sich
-// dadurch laufend änderte, über welcher Karte die Maus gerade "wirklich"
-// stand).
-function dragStart(event) {
-    ziehElement = event.currentTarget;
-    dropErfolgreich = false;
-    event.dataTransfer.effectAllowed = "move";
-    event.currentTarget.classList.add("dragging");
-}
-
-function dragOver(event) {
-
-    event.preventDefault();
-
-    if (!ziehElement) {
-        return;
-    }
-
-    const zielEl = event.currentTarget;
-    if (zielEl === ziehElement) {
-        return;
-    }
-
-    const rect = zielEl.getBoundingClientRect();
-    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-
-    if (nachUnten) {
-        zielEl.after(ziehElement);
-    } else {
-        zielEl.before(ziehElement);
-    }
-
-}
-
-// Fängt das Droppen in der leeren Fläche unterhalb der letzten Karte ab
-// (dort gibt es keine Karte, deren dragover-Handler feuern könnte).
-function dragOverListe(event) {
-
-    if (event.target !== event.currentTarget || !ziehElement) {
-        return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.appendChild(ziehElement);
-
-}
-
-async function dragDrop(event) {
-
-    event.preventDefault();
-    event.stopPropagation(); // sonst feuert das drop-Event zusätzlich am äusseren Container erneut
-
-    if (!ziehElement) {
-        return;
-    }
-
-    dropErfolgreich = true;
-
-    const neueReihenfolge = alleKartenElemente().map(el => el.dataset.id);
+// Verschieben per Griff - siehe shared/drag-reorder.js (Pointer Events statt
+// nativer HTML5-Drag&Drop-API, damit es auch auf dem Handy funktioniert).
+async function projektReihenfolgeGespeichert(neueReihenfolge) {
 
     const batch = writeBatch(db);
     neueReihenfolge.forEach((id, i) => {
@@ -335,18 +282,6 @@ async function dragDrop(event) {
 
     // Lokalen Cache bis zum nächsten Snapshot schon konsistent halten.
     projekte.sort((a, b) => neueReihenfolge.indexOf(a.id) - neueReihenfolge.indexOf(b.id));
-
-}
-
-function dragEnd(event) {
-
-    event.currentTarget.classList.remove("dragging");
-
-    if (!dropErfolgreich && ziehElement) {
-        renderListe(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
-    }
-
-    ziehElement = null;
 
 }
 
@@ -1110,11 +1045,6 @@ async function statusConfigSpeichern() {
 
 // Von den inline onclick-Handlern im gerenderten HTML aus erreichbar
 // (bei ES-Modulen sind Top-Level-Funktionen sonst nicht global sichtbar).
-window.dragStart = dragStart;
-window.dragOver = dragOver;
-window.dragOverListe = dragOverListe;
-window.dragDrop = dragDrop;
-window.dragEnd = dragEnd;
 window.statusInZeileGeaendert = statusInZeileGeaendert;
 window.neuesProjekt = neuesProjekt;
 window.projektBearbeiten = projektBearbeiten;

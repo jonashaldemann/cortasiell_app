@@ -195,3 +195,11 @@
     line-height: 1.5;
     margin: 0;
 }
+
+/* Klon, der beim Verschieben (siehe shared/drag-reorder.js) dem
+   Finger/Mauszeiger folgt - das echte Element bleibt in der Liste und
+   wird dort per .dragging (pro Modul definiert) abgeblendet. */
+.ziehen-klon {
+    opacity: 0.92;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}

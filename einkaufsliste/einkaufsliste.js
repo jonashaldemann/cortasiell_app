@@ -10,14 +10,12 @@ import {
     deleteDoc,
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { verschiebbarMachen } from "../shared/drag-reorder.js";
 
 let alleEintraege = []; // [{ id, text, erledigt, reihenfolge, angepinnterName }]
 let bearbeiteterNamePinId = null;
 let bearbeitetesTextId = null;
 let aktiverFilterName = null;
-
-let ziehElement = null; // die gerade gezogene .einkaufs-zeile
-let dropErfolgreich = false;
 
 // Gleiche Handy/Browser-Grenze wie in kalender.js/projekte.js. Auf dem
 // Handy ist der angepinnte Name in der Liste (nicht im Filter) gekürzt,
@@ -45,12 +43,28 @@ function escapeHtml(text) {
 
 }
 
+let einkaufslisteDrag;
+
 function init() {
+
+    einkaufslisteDrag = verschiebbarMachen({
+        container: document.getElementById("aktiveListe"),
+        itemSelector: ".einkaufs-zeile",
+        griffSelector: ".zeile-griff",
+        onDrop: einkaufslisteReihenfolgeGespeichert
+    });
 
     onSnapshot(query(collection(db, "einkaufsliste"), orderBy("reihenfolge")), snapshot => {
 
         alleEintraege = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        render();
+
+        // Ein Snapshot-Update, das genau während einer Ziehgeste eintrifft,
+        // würde die Liste per innerHTML ersetzen und damit den Knoten unter
+        // dem Zeiger zerstören - deshalb während des Verschiebens zurück-
+        // stellen; sobald es endet, kommt ohnehin ein weiteres Update.
+        if (!einkaufslisteDrag.istAktiv()) {
+            render();
+        }
 
     }, error => {
 
@@ -184,14 +198,7 @@ function renderAktiveListe(aktive) {
     }
 
     box.innerHTML = aktive.map(e => `
-        <div class="einkaufs-zeile"
-            draggable="true"
-            data-id="${e.id}"
-            ondragstart="window.dragStart(event)"
-            ondragover="window.dragOver(event)"
-            ondrop="window.dragDrop(event)"
-            ondragend="window.dragEnd(event)"
-        >
+        <div class="einkaufs-zeile" data-id="${e.id}">
             <div class="zeile-griff" title="Zum Verschieben ziehen">⠿</div>
             <input type="checkbox" onchange="window.erledigtGeaendert('${e.id}', this.checked)">
             ${renderZeileText(e)}
@@ -334,90 +341,15 @@ async function namePinSpeichern(id) {
 
 }
 
-// --- Drag & Drop (nur innerhalb der aktiven Liste) ---
-//
-// Die gezogene Zeile wird beim Hovern direkt an die Zielposition bewegt
-// (statt Nachbarn per Rand auseinanderzudrücken) – robuster, da sich
-// nichts mehr während des Ziehens selbst verschiebt und dadurch
-// wiederholt neu berechnet werden müsste (das führte vorher zum
-// Wackeln/unzuverlässigen Drops).
-
-function aktiveZeilenElemente() {
-    return [...document.querySelectorAll("#aktiveListe .einkaufs-zeile")];
-}
-
-function dragStart(event) {
-    ziehElement = event.currentTarget;
-    dropErfolgreich = false;
-    event.dataTransfer.effectAllowed = "move";
-    event.currentTarget.classList.add("dragging");
-}
-
-function dragOver(event) {
-
-    event.preventDefault();
-
-    if (!ziehElement) {
-        return;
-    }
-
-    const zielEl = event.currentTarget;
-    if (zielEl === ziehElement) {
-        return;
-    }
-
-    const rect = zielEl.getBoundingClientRect();
-    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-
-    if (nachUnten) {
-        zielEl.after(ziehElement);
-    } else {
-        zielEl.before(ziehElement);
-    }
-
-}
-
-function dragOverListe(event) {
-
-    if (event.target !== event.currentTarget || !ziehElement) {
-        return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.appendChild(ziehElement);
-
-}
-
-async function dragDrop(event) {
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!ziehElement) {
-        return;
-    }
-
-    dropErfolgreich = true;
-
-    const neueReihenfolge = aktiveZeilenElemente().map(el => el.dataset.id);
+// Verschieben per Griff - siehe shared/drag-reorder.js (Pointer Events statt
+// nativer HTML5-Drag&Drop-API, damit es auch auf dem Handy funktioniert).
+async function einkaufslisteReihenfolgeGespeichert(neueReihenfolge) {
 
     const batch = writeBatch(db);
     neueReihenfolge.forEach((id, i) => {
         batch.set(doc(db, "einkaufsliste", id), { reihenfolge: i }, { merge: true });
     });
     await batch.commit();
-
-}
-
-function dragEnd(event) {
-
-    event.currentTarget.classList.remove("dragging");
-
-    if (!dropErfolgreich && ziehElement) {
-        render(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
-    }
-
-    ziehElement = null;
 
 }
 
@@ -442,11 +374,6 @@ window.elementTextSpeichern = elementTextSpeichern;
 window.filterSetzen = filterSetzen;
 window.namePinOeffnen = namePinOeffnen;
 window.namePinSpeichern = namePinSpeichern;
-window.dragStart = dragStart;
-window.dragOver = dragOver;
-window.dragOverListe = dragOverListe;
-window.dragDrop = dragDrop;
-window.dragEnd = dragEnd;
 
 init();
 

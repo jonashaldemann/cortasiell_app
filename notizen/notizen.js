@@ -10,16 +10,12 @@ import {
     setDoc,
     writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { verschiebbarMachen } from "../shared/drag-reorder.js";
 
 const NAME_STICKY_KEY = "cortasiell_notizen_name";
 
 let notizen = []; // [{ id, text, name, erstelltAm, reihenfolge }]
 let bearbeitetesId = null;
-
-// Ziehen zum Verschieben - gleiches Muster wie bei den Projekt- bzw.
-// Kosten-Karten in projekte.js.
-let ziehElement = null;
-let dropErfolgreich = false;
 
 // Ältere Notizen haben noch kein "reihenfolge"-Feld (kam erst mit dem
 // Verschieben-Feature dazu). Fehlt es, fällt sortieren unten auf die
@@ -39,12 +35,28 @@ function escapeHtml(text) {
 
 }
 
+let notizenDrag;
+
 function init() {
+
+    notizenDrag = verschiebbarMachen({
+        container: document.getElementById("notizenListe"),
+        itemSelector: ".notiz-kachel",
+        griffSelector: ".notiz-griff",
+        onDrop: notizReihenfolgeGespeichert
+    });
 
     onSnapshot(query(collection(db, "notizen"), orderBy("erstelltAm", "desc")), snapshot => {
 
         notizen = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        render();
+
+        // Ein Snapshot-Update, das genau während einer Ziehgeste eintrifft,
+        // würde die Liste per innerHTML ersetzen und damit den Knoten unter
+        // dem Zeiger zerstören - deshalb während des Verschiebens zurück-
+        // stellen; sobald es endet, kommt ohnehin ein weiteres Update.
+        if (!notizenDrag.istAktiv()) {
+            render();
+        }
 
     }, error => {
 
@@ -132,19 +144,8 @@ function renderNotiz(n) {
         ? `<div class="notiz-griff unsichtbar"></div>`
         : `<div class="notiz-griff" title="Zum Verschieben ziehen">⠿</div>`;
 
-    const ziehAttribute = istPapierkorb
-        ? ""
-        : `
-            draggable="true"
-            data-id="${n.id}"
-            ondragstart="window.dragStart(event)"
-            ondragover="window.dragOver(event)"
-            ondrop="window.dragDrop(event)"
-            ondragend="window.dragEnd(event)"
-        `;
-
     return `
-        <div class="notiz-kachel${istPapierkorb ? " papierkorb" : ""}" ${ziehAttribute}>
+        <div class="notiz-kachel${istPapierkorb ? " papierkorb" : ""}" data-id="${n.id}">
             <div class="notiz-kachel-kopf">
                 ${griff}
                 <div class="notiz-kachel-aktionen">${aktionen}</div>
@@ -156,66 +157,7 @@ function renderNotiz(n) {
 
 }
 
-function alleNotizElemente() {
-    return [...document.querySelectorAll("#notizenListe .notiz-kachel[draggable='true']")];
-}
-
-function dragStart(event) {
-    ziehElement = event.currentTarget;
-    dropErfolgreich = false;
-    event.dataTransfer.effectAllowed = "move";
-    event.currentTarget.classList.add("dragging");
-}
-
-function dragOver(event) {
-
-    event.preventDefault();
-
-    if (!ziehElement) {
-        return;
-    }
-
-    const zielEl = event.currentTarget;
-    if (zielEl === ziehElement) {
-        return;
-    }
-
-    const rect = zielEl.getBoundingClientRect();
-    const nachUnten = (event.clientY - rect.top) > rect.height / 2;
-
-    if (nachUnten) {
-        zielEl.after(ziehElement);
-    } else {
-        zielEl.before(ziehElement);
-    }
-
-}
-
-// Fängt das Droppen in der leeren Fläche unterhalb der letzten Kachel ab
-// (dort gibt es keine Kachel, deren dragover-Handler feuern könnte).
-function dragOverListe(event) {
-
-    if (event.target !== event.currentTarget || !ziehElement) {
-        return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.appendChild(ziehElement);
-
-}
-
-async function dragDrop(event) {
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!ziehElement) {
-        return;
-    }
-
-    dropErfolgreich = true;
-
-    const neueReihenfolge = alleNotizElemente().map(el => el.dataset.id);
+async function notizReihenfolgeGespeichert(neueReihenfolge) {
 
     const batch = writeBatch(db);
     neueReihenfolge.forEach((id, i) => {
@@ -224,18 +166,6 @@ async function dragDrop(event) {
     await batch.commit();
 
     notizen.sort((a, b) => neueReihenfolge.indexOf(a.id) - neueReihenfolge.indexOf(b.id));
-
-}
-
-function dragEnd(event) {
-
-    event.currentTarget.classList.remove("dragging");
-
-    if (!dropErfolgreich && ziehElement) {
-        render(); // Drag abgebrochen -> ursprüngliche Reihenfolge wiederherstellen
-    }
-
-    ziehElement = null;
 
 }
 
@@ -336,11 +266,6 @@ window.notizTextSpeichern = notizTextSpeichern;
 window.notizLoeschen = notizLoeschen;
 window.notizWiederherstellen = notizWiederherstellen;
 window.notizEndgueltigLoeschen = notizEndgueltigLoeschen;
-window.dragStart = dragStart;
-window.dragOver = dragOver;
-window.dragOverListe = dragOverListe;
-window.dragDrop = dragDrop;
-window.dragEnd = dragEnd;
 window.hilfeOeffnen = hilfeOeffnen;
 window.hilfeSchliessen = hilfeSchliessen;
 
