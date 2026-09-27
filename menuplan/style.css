@@ -114,8 +114,9 @@ h1 {
 }
 
 .ki-vorschlaege-button {
+    display: block; /* <button> ist sonst inline-block - margin:auto würde nicht zentrieren */
     max-width: min(1400px, 96vw);
-    margin: 0 auto 16px;
+    margin: 16px auto 0;
     width: 100%;
     background: var(--surface);
     color: var(--text);
