@@ -152,6 +152,44 @@ async function adresseLoeschen(id) {
 
 }
 
+function csvFeld(text) {
+
+    const wert = String(text ?? "");
+
+    if (/[";\n]/.test(wert)) {
+        return `"${wert.replace(/"/g, '""')}"`;
+    }
+
+    return wert;
+
+}
+
+// Semikolon statt Komma als Trennzeichen, damit Excel (in DE/CH-Gebietsschema)
+// die Datei beim Doppelklick direkt richtig in Spalten aufteilt. Das
+// vorangestellte BOM sorgt dafür, dass Excel Umlaute als UTF-8 statt als
+// Latin-1 interpretiert.
+function adressenExportieren() {
+
+    const kopf = ["Bezeichnung", "Name", "Vorname", "Ort", "Telefon", "E-Mail", "Webseite"];
+
+    const zeilen = adressen.map(a => [
+        a.bezeichnung, a.name, a.vorname, a.ort, a.tel, a.mail, a.webseite
+    ].map(csvFeld).join(";"));
+
+    const csv = [kopf.join(";"), ...zeilen].join("\r\n");
+
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "adressen-cortasiell.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+
+}
+
 function hilfeOeffnen() {
     document.getElementById("hilfeOverlay").classList.remove("hidden");
 }
@@ -167,5 +205,6 @@ window.adresseBearbeiten = adresseBearbeiten;
 window.schliesseEditor = schliesseEditor;
 window.adresseSpeichern = adresseSpeichern;
 window.adresseLoeschen = adresseLoeschen;
+window.adressenExportieren = adressenExportieren;
 
 init();

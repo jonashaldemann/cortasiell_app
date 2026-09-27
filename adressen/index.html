@@ -30,15 +30,17 @@
                 <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
             </div>
             <p>
-                Klicke auf eine Adresse, um sie zu bearbeiten. Die Liste ist
-                immer alphabetisch nach Name/Firma sortiert. "Bezeichnung"
-                ist frei wählbar, z.B. Gärtner, Nachbar, Maurer.
+                Klick auf eine Adresse zum Bearbeiten. Liste ist
+                alphabetisch (Name/Firma) sortiert. "Bezeichnung" frei
+                wählbar (z.B. Gärtner, Nachbar, Maurer). CSV-Export lässt
+                sich direkt in Excel öffnen.
             </p>
         </div>
     </div>
 
     <div class="aktionsleiste">
         <button onclick="window.neueAdresse()">+ Neue Adresse</button>
+        <button class="abbrechen-button" onclick="window.adressenExportieren()">⬇ CSV exportieren</button>
     </div>
 
     <div class="adressen-spaltenkopf">
