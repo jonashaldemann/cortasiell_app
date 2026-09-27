@@ -61,13 +61,9 @@
         <span></span>
     </div>
 
-    <div id="projekteListe" class="projekte-liste" ondragover="window.dragOverListe(event)" ondrop="window.dragDrop(event)">
+    <div id="projekteListe" class="projekte-liste">
         <p class="hinweis-text">Lädt…</p>
     </div>
-
-    <!-- Nur für den Druck sichtbar (siehe @media print in style.css) -
-         Inhalt wird von projektDrucken() vor window.print() befüllt. -->
-    <div id="druckBereich"></div>
 
     <div id="projektePapierkorb"></div>
 
@@ -190,6 +186,8 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
     <script type="module" src="projekte.js"></script>
 
 </body>
