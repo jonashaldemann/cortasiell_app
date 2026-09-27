@@ -91,16 +91,30 @@ h1 {
 }
 
 .notiz-kachel {
-    position: relative;
     background: var(--surface);
     border-left: 4px solid var(--akzent-notizen);
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 10px 16px 14px;
+}
+
+.notiz-kachel-kopf {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.notiz-griff {
+    color: var(--text-muted);
+    cursor: grab;
+}
+
+.notiz-griff.unsichtbar {
+    visibility: hidden;
 }
 
 .notiz-text {
     margin: 0;
-    padding-right: 20px;
     font-size: 0.9rem;
     white-space: pre-wrap;
     word-break: break-word;
@@ -115,9 +129,6 @@ h1 {
 }
 
 .notiz-kachel-aktionen {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     display: flex;
     gap: 2px;
 }
@@ -136,6 +147,10 @@ h1 {
 .notiz-kachel-aktionen button:hover {
     color: var(--akzent-notizen-dunkel);
     background: none;
+}
+
+.notiz-kachel.dragging {
+    opacity: 0.4;
 }
 
 .notiz-kachel.papierkorb {

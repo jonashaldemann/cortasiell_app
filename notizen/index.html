@@ -34,13 +34,11 @@
                 <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
             </div>
             <p>
-                Für alles, was sonst nirgends Platz hat: Text eintragen,
-                Namen dazuschreiben, fertig. Klick auf eine Notiz, um sie
-                zu bearbeiten.
+                Text eintragen, Namen dazuschreiben, fertig. Klick auf
+                eine Notiz zum Bearbeiten. Am Griff ⠿ verschieben.
                 <br><br>
-                Gelöschte Notizen landen zunächst ausgegraut im Papierkorb
-                unten – von dort kannst du sie wiederherstellen (↺) oder
-                endgültig löschen (🗑).
+                Gelöscht = ausgegraut im Papierkorb unten (↺
+                wiederherstellen, 🗑 endgültig löschen).
             </p>
         </div>
     </div>
@@ -53,7 +51,7 @@
         </div>
     </div>
 
-    <div id="notizenListe" class="notizen-liste">
+    <div id="notizenListe" class="notizen-liste" ondragover="window.dragOverListe(event)" ondrop="window.dragDrop(event)">
         <p class="hinweis-text">Lädt…</p>
     </div>
 
