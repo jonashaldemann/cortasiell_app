@@ -49,7 +49,7 @@ h1 {
 .projekte-spaltenkopf,
 .projekt-karte {
     display: grid;
-    grid-template-columns: 20px minmax(140px, 1.2fr) minmax(200px, 2fr) 110px 90px 80px 100px 40px 150px 32px;
+    grid-template-columns: 20px minmax(140px, 1.2fr) minmax(200px, 2fr) 110px 90px 80px 100px 40px 150px 32px 32px;
     column-gap: 14px;
     align-items: center;
 }
@@ -485,6 +485,10 @@ textarea {
     background: var(--akzent-reserve-dunkel);
 }
 
+#druckBereich {
+    display: none;
+}
+
 .datei-anzeige {
     display: flex;
     align-items: center;
@@ -556,8 +560,97 @@ button:hover {
     .projekt-karte .karte-tage,
     .projekt-karte .karte-kosten,
     .projekt-karte .karte-datei,
-    .projekt-karte .karte-status {
+    .projekt-karte .karte-status,
+    .projekt-karte .karte-drucken {
         display: none;
+    }
+
+}
+
+/* PDF-Export per Browser-Drucken: nur #druckBereich bleibt sichtbar,
+   alles andere (Kopfzeile, Listen, Overlays) wird ausgeblendet. Kompakte
+   Masse/Schriftgrössen, damit ein normales Projekt auf eine A4-Seite passt. */
+@media print {
+
+    body > *:not(#druckBereich) {
+        display: none !important;
+    }
+
+    #druckBereich {
+        display: block !important;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    @page {
+        size: A4;
+        margin: 16mm;
+    }
+
+    #druckBereich h1 {
+        font-family: var(--font-medium);
+        font-size: 20px;
+        margin: 0 0 10px;
+    }
+
+    #druckBereich h2 {
+        font-family: var(--font-medium);
+        font-size: 13px;
+        margin: 14px 0 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #444;
+    }
+
+    #druckBereich .druck-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 18px;
+        font-size: 11px;
+        margin-bottom: 6px;
+    }
+
+    #druckBereich .druck-beschreibung {
+        font-size: 11px;
+        white-space: pre-wrap;
+        margin: 0;
+    }
+
+    #druckBereich .druck-checkliste,
+    #druckBereich .druck-weblinks {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 11px;
+    }
+
+    #druckBereich .druck-checkliste {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    #druckBereich .druck-kosten-tabelle {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+    }
+
+    #druckBereich .druck-kosten-tabelle th,
+    #druckBereich .druck-kosten-tabelle td {
+        text-align: left;
+        padding: 3px 6px 3px 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    #druckBereich .druck-kosten-tabelle th:not(:first-child),
+    #druckBereich .druck-kosten-tabelle td:not(:first-child) {
+        text-align: right;
+    }
+
+    #druckBereich .druck-kosten-tabelle tfoot td {
+        font-family: var(--font-medium);
+        border-bottom: none;
+        border-top: 1px solid #444;
     }
 
 }

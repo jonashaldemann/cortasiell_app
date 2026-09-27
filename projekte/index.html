@@ -33,9 +33,9 @@
             <p>
                 Klick auf ein Projekt zum Bearbeiten. Status direkt im
                 Dropdown änderbar. Am Griff ⠿ verschieben. ⚙ oben =
-                Status-Liste &amp; Farben anpassen. Im Editor lassen sich
-                auch Weblinks hinterlegen (werden zu anklickbaren
-                Buttons).
+                Status-Liste &amp; Farben anpassen. 🖨 druckt ein Projekt
+                als PDF (eine A4-Seite). Im Editor lassen sich auch
+                Weblinks hinterlegen (werden zu anklickbaren Buttons).
                 <br><br>
                 Gelöscht = ausgegraut im Papierkorb unten (↺
                 wiederherstellen, 🗑 endgültig löschen).
@@ -58,11 +58,16 @@
         <span>Datei</span>
         <span>Status</span>
         <span></span>
+        <span></span>
     </div>
 
     <div id="projekteListe" class="projekte-liste" ondragover="window.dragOverListe(event)" ondrop="window.dragDrop(event)">
         <p class="hinweis-text">Lädt…</p>
     </div>
+
+    <!-- Nur für den Druck sichtbar (siehe @media print in style.css) -
+         Inhalt wird von projektDrucken() vor window.print() befüllt. -->
+    <div id="druckBereich"></div>
 
     <div id="projektePapierkorb"></div>
 

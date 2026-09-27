@@ -252,6 +252,7 @@ function renderProjektKarte(p, istPapierkorb) {
             <select class="karte-status" onclick="event.stopPropagation()" onchange="window.statusInZeileGeaendert('${p.id}', this.value)">
                 ${statusOptionen.map(s => `<option value="${escapeHtml(s.name)}" ${s.name === p.status ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}
             </select>
+            <button class="row-action karte-drucken" onclick="event.stopPropagation(); window.projektDrucken('${p.id}')" title="Als PDF drucken">🖨</button>
             <button class="row-action" onclick="event.stopPropagation(); window.projektLoeschen('${p.id}')" title="Löschen">🗑</button>
         </div>
     `;
@@ -760,6 +761,89 @@ function dateiEntfernenKlick() {
     renderDateiAnzeige(null);
 }
 
+// --- PDF-Export (per Browser-Drucken) ---
+//
+// Keine PDF-Bibliothek nötig: #druckBereich wird mit einer kompakten
+// Ein-Projekt-Ansicht befüllt, per @media print (siehe style.css) wird
+// beim Drucken alles ANDERE ausgeblendet, "Drucken" bietet im
+// Dialog direkt "Als PDF speichern" an.
+
+function formatDatumDe(iso) {
+    const [jahr, monat, tag] = String(iso || "").split("-");
+    return (jahr && monat && tag) ? `${tag}.${monat}.${jahr}` : "";
+}
+
+function renderDruckAnsicht(p) {
+
+    const zeitspanne = (p.startDatum && p.endDatum)
+        ? `${formatDatumDe(p.startDatum)} – ${formatDatumDe(p.endDatum)}`
+        : "";
+
+    const kostenzeilen = (p.kostenpositionen || []).filter(k => k.position?.trim());
+
+    return `
+        <h1>${escapeHtml(p.titel)}</h1>
+
+        <div class="druck-meta">
+            ${p.status ? `<div><b>Status:</b> ${escapeHtml(p.status)}</div>` : ""}
+            ${p.verantwortlich ? `<div><b>Verantwortlich:</b> ${escapeHtml(p.verantwortlich)}</div>` : ""}
+            ${p.anzahlPersonen ? `<div><b>Personen:</b> ${p.anzahlPersonen}</div>` : ""}
+            ${p.dauerTage ? `<div><b>Dauer:</b> ${p.dauerTage} Tage</div>` : ""}
+            ${zeitspanne ? `<div><b>Zeitspanne:</b> ${zeitspanne}</div>` : ""}
+        </div>
+
+        ${p.beschreibung ? `
+            <h2>Beschreibung</h2>
+            <p class="druck-beschreibung">${escapeHtml(p.beschreibung)}</p>
+        ` : ""}
+
+        ${(p.checkliste || []).length ? `
+            <h2>Abklärungen</h2>
+            <ul class="druck-checkliste">
+                ${p.checkliste.map(c => `<li>${c.erledigt ? "☑" : "☐"} ${escapeHtml(c.text)}</li>`).join("")}
+            </ul>
+        ` : ""}
+
+        ${kostenzeilen.length ? `
+            <h2>Kosten</h2>
+            <table class="druck-kosten-tabelle">
+                <thead><tr><th>Position</th><th>Anzahl</th><th>CHF/Einheit</th><th>CHF total</th></tr></thead>
+                <tbody>
+                    ${kostenzeilen.map(k => `
+                        <tr>
+                            <td>${escapeHtml(k.position)}</td>
+                            <td>${k.anzahl || ""}</td>
+                            <td>${k.chfProAnzahl ? formatChf(k.chfProAnzahl) : ""}</td>
+                            <td>${formatChf(kostenpositionZeileTotal(k))}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+                <tfoot><tr><td colspan="3">Total</td><td>${formatChf(p.kosten || 0)}</td></tr></tfoot>
+            </table>
+        ` : ""}
+
+        ${(p.weblinks || []).length ? `
+            <h2>Weblinks</h2>
+            <ul class="druck-weblinks">
+                ${p.weblinks.map(w => `<li>${escapeHtml(w.label)}: ${escapeHtml(w.url)}</li>`).join("")}
+            </ul>
+        ` : ""}
+    `;
+
+}
+
+function projektDrucken(id) {
+
+    const projekt = projekte.find(p => p.id === id);
+    if (!projekt) {
+        return;
+    }
+
+    document.getElementById("druckBereich").innerHTML = renderDruckAnsicht(projekt);
+    window.print();
+
+}
+
 async function projektSpeichern() {
 
     const titel = document.getElementById("inputTitel").value.trim();
@@ -1124,6 +1208,7 @@ window.weblinkBearbeitenOeffnen = weblinkBearbeitenOeffnen;
 window.weblinkFeldVerlassen = weblinkFeldVerlassen;
 window.weblinkEntfernen = weblinkEntfernen;
 window.dateiEntfernenKlick = dateiEntfernenKlick;
+window.projektDrucken = projektDrucken;
 window.projektSpeichern = projektSpeichern;
 window.projektLoeschen = projektLoeschen;
 window.projektWiederherstellen = projektWiederherstellen;
