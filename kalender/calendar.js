@@ -51,17 +51,15 @@ const totalTage = 366;
 const breiteAnsichtMedia = window.matchMedia("(min-width: 900px)");
 function istHorizontal() { return breiteAnsichtMedia.matches; }
 
-// Pixel pro Tag – wird per Zoom verändert. LABEL_GROESSE/SPALTEN_BREITE/
-// DATUM_SPALTE_BREITE müssen zu den entsprechenden Werten in style.css
-// passen (dort als Kommentar vermerkt).
+// Pixel pro Tag – wird per Zoom verändert (nur horizontale Browser-Ansicht;
+// die Handy-Agenda hat kein Pixel-pro-Tag-Raster). LABEL_GROESSE muss zum
+// entsprechenden Wert in style.css passen (dort als Kommentar vermerkt).
 let zellGroesse = 12;
 const ZELL_MIN = 4;
 const ZELL_MAX = 56;
 const ZELL_TAGESZAHL_MIN = 20; // ab dieser Zellgrösse lohnt sich eine Tageszahl-Leiste
 const LABEL_GROESSE = 130;
-const SPALTEN_BREITE = 84;
-const DATUM_SPALTE_BREITE = 56;
-const LANE_PITCH = 28; // px zwischen zwei gestapelten Balken (Höhe horizontal / Breite vertikal)
+const LANE_PITCH = 28; // px zwischen zwei gestapelten Balken (Höhe horizontal)
 const NOTIZ_MARKER_BREITE = 20; // px, Diamant + Lücke vor dem Text
 const NOTIZ_ZEICHEN_BREITE = 6; // px, grobe Breite pro Zeichen des Notiz-Labels
 
@@ -576,15 +574,15 @@ function punktStil(idx, lane = 0) {
 
 // Dünne Trennlinie pro Tag (nicht nur pro Woche) – damit einzelne Tage auch
 // bei grösseren Zellen klar auseinandergehalten werden können, unabhängig
-// vom Zoom.
+// vom Zoom. Nur noch von der horizontalen (Browser-)Ansicht gebraucht -
+// die Handy-Ansicht ist eine Tageskarten-Agenda ohne Pixel-pro-Tag-Raster
+// (siehe agendaHtml() weiter unten).
 function tagesGitterHtml() {
 
     let html = "";
 
     for (let i = 1; i < totalTage; i++) {
-        html += istHorizontal()
-            ? `<div class="zl-tag-gitterlinie" style="left:${i * zellGroesse}px;"></div>`
-            : `<div class="zl-tag-gitterlinie-v" style="top:${i * zellGroesse}px;"></div>`;
+        html += `<div class="zl-tag-gitterlinie" style="left:${i * zellGroesse}px;"></div>`;
     }
 
     return html;
@@ -772,112 +770,198 @@ function tagesnotizenAbschnittHtml(gesamtGroesse) {
 
 }
 
-// --- Rendering: vertikale Zeitleiste (Handy) ---
+// --- Rendering: Tages-Agenda (Handy) ---
+//
+// Bewusst kein rotiertes Pixel-pro-Tag-Raster mehr (schwer lesbar, siehe
+// Feedback) - stattdessen eine Liste aus Tageskarten (wie ein
+// Kalender-"Listenansicht"): Ereignisse/Notizen erscheinen inline pro Tag,
+// mehrtägige Personen-Aufenthalte als durchgehende, beschriftete
+// Seitenbalken rechts daneben (ähnlich einer Abwesenheits-/Ferien-Leiste).
+// Da Tageskarten unterschiedlich hoch sind (je nach Inhalt), werden die
+// Seitenbalken NICHT über zellGroesse berechnet, sondern nach dem Rendern
+// anhand der tatsächlichen Kartenpositionen vermessen und positioniert
+// (siehe agendaSeitenbalkenPositionieren()).
 
-function vertikalHtml() {
+const AGENDA_WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const AGENDA_LANE_BREITE = 26; // px pro Personen-Seitenbalken-Lane
 
-    const gesamtGroesse = totalTage * zellGroesse;
-    const monate = monatsStarts();
-    const wochen = wochenMontage();
-    const zeigeTage = zellGroesse >= ZELL_TAGESZAHL_MIN;
-    const feiertage = feiertageImBereich();
-    const wochenenden = wochenendenLaeufe();
+// Ereignisse (inkl. Verschiebedatum-Segmente) gruppiert nach ihrem
+// jeweiligen Start-Tag-Index - Folgetage eines mehrtägigen Ereignisses
+// zeigen bewusst keine eigene Zeile (sonst wiederholt sich derselbe Titel
+// auf jeder Tageskarte); die Dauer steht stattdessen als Zusatz beim Start.
+function agendaEreignisseProTag() {
 
-    const monateHtml = monate.map(d => {
-        const idx = idZuTagIndex(datumZuId(d));
-        return `<div class="zl-monat-strich-v" style="top:${idx * zellGroesse}px;"><span>${MONATSNAMEN_KURZ[d.getMonth()]} ${d.getFullYear()}</span></div>`;
-    }).join("");
+    const proTag = Array.from({ length: totalTage }, () => []);
 
-    const wochenHtml = wochen.map(d => {
-        const idx = idZuTagIndex(datumZuId(d));
-        return `<div class="zl-woche-strich-v" style="top:${idx * zellGroesse}px;"><span>${pad(d.getDate())}.${pad(d.getMonth() + 1)}.</span></div>`;
-    }).join("");
+    ereignisse.forEach(e => {
 
-    const tageHtml = zeigeTage
-        ? Array.from({ length: totalTage }, (_, i) =>
-            `<div class="zl-tag-zahl-v" style="top:${i * zellGroesse}px; height:${zellGroesse}px;">${tagePlus(rangeStart, i).getDate()}</div>`
-        ).join("")
-        : "";
+        const haupt = segmentClip(e.vonDatum, e.bisDatum);
+        if (haupt) {
+            proTag[haupt.startIdx].push({ ereignis: e, istVerschoben: false, laenge: haupt.endIdx - haupt.startIdx + 1 });
+        }
 
-    const feiertagHtml = feiertage.map(f =>
-        `<div class="zl-feiertag-strich-v" style="top:${f.idx * zellGroesse}px;" title="${escapeHtml(f.name)}">
-            <span class="zl-feiertag-text-v">${escapeHtml(f.name)}</span>
-        </div>`
-    ).join("");
+        if (e.verschiebeVon && e.verschiebeBis) {
+            const versch = segmentClip(e.verschiebeVon, e.verschiebeBis);
+            if (versch) {
+                proTag[versch.startIdx].push({ ereignis: e, istVerschoben: true, laenge: versch.endIdx - versch.startIdx + 1 });
+            }
+        }
 
-    const wochenendHtml = wochenenden.map(l =>
-        `<div class="zl-wochenende-streifen-v" style="top:${l.startIdx * zellGroesse}px; height:${(l.endIdx - l.startIdx + 1) * zellGroesse}px;"></div>`
-    ).join("");
+    });
 
-    const wochenGitterHtml = wochen.map(d => {
-        const idx = idZuTagIndex(datumZuId(d));
-        return `<div class="zl-woche-gitterlinie-v" style="top:${idx * zellGroesse}px;"></div>`;
-    }).join("");
+    return proTag;
 
-    const feiertagFlaecheHtml = feiertage.map(f =>
-        `<div class="zl-feiertag-flaeche-v" style="top:${f.idx * zellGroesse}px; height:${zellGroesse}px;"></div>`
-    ).join("");
+}
 
-    const personenGepackt = personenBalkenListe();
-    const personenBreite = personenGepackt.anzahlLanes * LANE_PITCH + 6;
+function agendaEreignisChipHtml(item) {
 
-    const personenSpalte = `
-        <div class="zl-spalte" style="flex:0 0 ${personenBreite}px;">
-            <div class="zl-spalte-label">Personen</div>
-            <div class="zl-spur-v" data-neu="person" style="height:${gesamtGroesse}px;">
-                ${personenGepackt.platziert.map(item => personBalkenHtml(item)).join("")}
-            </div>
-        </div>
-    `;
-
-    const ereignisGepackt = ereignisBalkenListe();
-    const ereignisBreite = ereignisGepackt.anzahlLanes * LANE_PITCH + 6;
-    const ereignisArmiertKlasse = ereignisVerschiebeZeichnenId ? " zl-spalte-zeichnen-aktiv" : "";
-
-    const ereignisSpalte = `
-        <div class="zl-spalte${ereignisArmiertKlasse}" style="flex:0 0 ${ereignisBreite}px;">
-            <div class="zl-spalte-label">Ereignisse</div>
-            <div class="zl-spur-v" data-neu="ereignis" style="height:${gesamtGroesse}px;">
-                ${ereignisGepackt.platziert.map(item => ereignisBalkenHtml(item)).join("")}
-            </div>
-        </div>
-    `;
-
-    const notizGepackt = tagesnotizenBalkenListe();
-    const notizBreite = Math.max(84, notizGepackt.anzahlLanes * LANE_PITCH + 6);
-
-    const notizSpalte = `
-        <div class="zl-spalte" style="flex:0 0 ${notizBreite}px;">
-            <div class="zl-spalte-label">Notizen</div>
-            <div class="zl-spur-v zl-spur-notizen-v" data-neu="notiz" style="height:${gesamtGroesse}px;">
-                ${notizGepackt.platziert.map(item => notizMarkerHtml(item)).join("")}
-            </div>
-        </div>
-    `;
+    const ereignis = item.ereignis;
+    const projektKlasse = ereignis.projektId ? " zl-agenda-chip-projekt" : "";
+    const verschobenKlasse = item.istVerschoben ? " zl-agenda-chip-verschoben" : "";
+    const praefix = item.istVerschoben ? "↦ " : "";
+    const dauer = item.laenge > 1 ? ` <span class="zl-agenda-chip-dauer">${item.laenge} Tage</span>` : "";
 
     return `
-        <div class="zl-inner-v" style="min-height:${LABEL_GROESSE + gesamtGroesse}px;">
-            <div class="zl-datum-spalte">
-                <div class="zl-ecke-v"></div>
-                <div class="zl-datum-spur" style="height:${gesamtGroesse}px;">
-                    ${monateHtml}${wochenHtml}${tageHtml}${feiertagHtml}
+        <button type="button" class="zl-agenda-chip${projektKlasse}${verschobenKlasse}" onclick="window.ereignisOeffnen('${ereignis.id}')">
+            ${praefix}${escapeHtml(ereignis.titel)}${dauer}
+        </button>
+    `;
+
+}
+
+function agendaNotizHtml(id) {
+
+    const text = tageDaten[id]?.aktivitaet;
+
+    return text
+        ? `<button type="button" class="zl-agenda-notiz" onclick="window.tagesnotizDialogOeffnen('${id}')">${escapeHtml(text)}</button>`
+        : `<button type="button" class="zl-agenda-notiz zl-agenda-notiz-leer" onclick="window.tagesnotizDialogOeffnen('${id}')">+ Notiz</button>`;
+
+}
+
+function agendaTagHtml(idx, ereignisItems) {
+
+    const datum = tagePlus(rangeStart, idx);
+    const id = tagIndexZuId(idx);
+    const wochentagKurz = AGENDA_WOCHENTAGE[datum.getDay()];
+    const wochenende = datum.getDay() === 0 || datum.getDay() === 6;
+    const feiertag = feiertagName(datum);
+
+    const klassen = [
+        "zl-agenda-tag",
+        idx === 0 ? "zl-agenda-tag-heute" : "",
+        wochenende ? "zl-agenda-tag-wochenende" : ""
+    ].filter(Boolean).join(" ");
+
+    const chipsHtml = ereignisItems.map(item => agendaEreignisChipHtml(item)).join("");
+
+    return `
+        <div class="${klassen}" data-idx="${idx}">
+            <div class="zl-agenda-datum">
+                <span class="zl-agenda-wochentag">${wochentagKurz}</span>
+                <span class="zl-agenda-tagnummer">${datum.getDate()}</span>
+                ${feiertag ? `<span class="zl-agenda-feiertag" title="${escapeHtml(feiertag)}">${escapeHtml(feiertag)}</span>` : ""}
+            </div>
+            <div class="zl-agenda-inhalt">
+                <div class="zl-agenda-chips">
+                    ${chipsHtml}
+                    <button type="button" class="zl-agenda-chip-hinzufuegen" onclick="window.agendaNeuesEreignisFuerTag('${id}')" title="Ereignis für diesen Tag">+</button>
                 </div>
-            </div>
-            <div class="zl-hintergrund-v" style="top:${LABEL_GROESSE}px; left:${DATUM_SPALTE_BREITE}px; right:0; height:${gesamtGroesse}px;">
-                ${wochenendHtml}
-                ${tagesGitterHtml()}
-                ${wochenGitterHtml}
-                ${feiertagFlaecheHtml}
-                <div class="zl-heute-linie-v"></div>
-            </div>
-            <div class="zl-spalten-gruppe">
-                ${personenSpalte}
-                ${ereignisSpalte}
-                ${notizSpalte}
+                ${agendaNotizHtml(id)}
             </div>
         </div>
     `;
 
+}
+
+function agendaHtml() {
+
+    const monate = monatsStarts();
+    const monatAnIdx = new Map(monate.map(d => [idZuTagIndex(datumZuId(d)), d]));
+    const ereignisseProTag = agendaEreignisseProTag();
+
+    let liste = "";
+
+    for (let i = 0; i < totalTage; i++) {
+
+        if (monatAnIdx.has(i)) {
+            const d = monatAnIdx.get(i);
+            liste += `<div class="zl-agenda-monat">${MONATSNAMEN_KURZ[d.getMonth()]} ${d.getFullYear()}</div>`;
+        }
+
+        liste += agendaTagHtml(i, ereignisseProTag[i]);
+
+    }
+
+    return `
+        <div class="zl-agenda-wrapper">
+            <div class="zl-agenda-liste" id="zlAgendaListe">${liste}</div>
+            <div class="zl-agenda-seitenbalken-spur" id="zlAgendaSeitenbalken"></div>
+        </div>
+    `;
+
+}
+
+// Zweiter Durchgang nach dem Einfügen ins DOM: liest die tatsächliche
+// Position/Höhe jeder Tageskarte aus (unterschiedlich hoch je nach Inhalt)
+// und positioniert die Personen-Seitenbalken exakt von der Start- bis zur
+// End-Tageskarte, statt sie über eine feste Pixel-pro-Tag-Grösse zu
+// berechnen (die es in der Agenda-Ansicht nicht mehr gibt).
+function agendaSeitenbalkenPositionieren() {
+
+    const listeEl = document.getElementById("zlAgendaListe");
+    const spurEl = document.getElementById("zlAgendaSeitenbalken");
+
+    if (!listeEl || !spurEl) {
+        return;
+    }
+
+    const tagElemente = listeEl.querySelectorAll(".zl-agenda-tag");
+    if (tagElemente.length === 0) {
+        return;
+    }
+
+    const listeTop = listeEl.getBoundingClientRect().top;
+
+    function tagPosition(idx) {
+        const rect = tagElemente[idx].getBoundingClientRect();
+        return { top: rect.top - listeTop, hoehe: rect.height };
+    }
+
+    const { platziert, anzahlLanes } = personenBalkenListe();
+
+    spurEl.style.width = (anzahlLanes * AGENDA_LANE_BREITE + 4) + "px";
+
+    spurEl.innerHTML = platziert.map(item => {
+
+        const von = tagPosition(item.startIdx);
+        const bis = tagPosition(item.endIdx);
+        const vonId = tagIndexZuId(item.startIdx);
+        const bisId = tagIndexZuId(item.endIdx);
+
+        return `
+            <div class="zl-agenda-seitenbalken"
+                style="top:${von.top}px; height:${(bis.top + bis.hoehe) - von.top}px; left:${item.lane * AGENDA_LANE_BREITE}px;"
+                title="${escapeHtml(item.name)}: ${escapeHtml(formatZeitraum(vonId, bisId))}"
+                onclick="window.agendaPersonBalkenOeffnen('${escapeHtml(item.name)}', '${vonId}', '${bisId}')"
+            ><span class="zl-agenda-seitenbalken-titel">${escapeHtml(item.name)}</span></div>
+        `;
+
+    }).join("");
+
+}
+
+function agendaNeuesEreignisFuerTag(id) {
+    neuesEreignis({ vonId: id, bisId: id });
+}
+
+function agendaPersonBalkenOeffnen(name, vonId, bisId) {
+    personDialogOeffnen({
+        alterName: name,
+        alteTage: tageIdsZwischen(vonId, bisId),
+        vonId,
+        bisId
+    });
 }
 
 // --- Render-Einstieg + Zoom-Standard ---
@@ -899,7 +983,17 @@ function render() {
         standardZoomSetzen();
     }
 
-    zlScrollEl.innerHTML = jetzt === "horizontal" ? horizontalHtml() : vertikalHtml();
+    if (jetzt === "horizontal") {
+        zlScrollEl.innerHTML = horizontalHtml();
+        return;
+    }
+
+    zlScrollEl.innerHTML = agendaHtml();
+
+    // Tageskarten sind unterschiedlich hoch - erst nachdem sie im DOM
+    // stehen (und damit eine echte Höhe haben), lassen sich die
+    // Seitenbalken exakt daran ausrichten.
+    requestAnimationFrame(agendaSeitenbalkenPositionieren);
 
 }
 
@@ -1643,6 +1737,9 @@ window.verschiebedatumEntfernen = verschiebedatumEntfernen;
 window.schliesseNotizOverlay = schliesseNotizOverlay;
 window.notizSpeichern = notizSpeichern;
 window.notizLoeschen = notizLoeschen;
+window.tagesnotizDialogOeffnen = tagesnotizDialogOeffnen;
+window.agendaNeuesEreignisFuerTag = agendaNeuesEreignisFuerTag;
+window.agendaPersonBalkenOeffnen = agendaPersonBalkenOeffnen;
 
 init();
 
