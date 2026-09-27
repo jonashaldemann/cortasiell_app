@@ -434,6 +434,57 @@ textarea {
     color: var(--text);
 }
 
+.weblinks-liste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.weblinks-liste:empty {
+    margin-top: 0;
+}
+
+.weblink-zeile {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.weblink-zeile:not(.weblink-zeile-fertig) {
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 8px;
+}
+
+.weblink-eingabe {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.weblink-eingabe input {
+    width: 160px;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+}
+
+.weblink-button {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--akzent-reserve);
+    color: #fff;
+    text-decoration: none;
+    font-family: var(--font-medium);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.weblink-button:hover {
+    background: var(--akzent-reserve-dunkel);
+}
+
 .datei-anzeige {
     display: flex;
     align-items: center;

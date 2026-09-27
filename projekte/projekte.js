@@ -50,6 +50,10 @@ let kostenUidZaehler = 0;
 let kostenZiehElement = null;
 let kostenDropErfolgreich = false;
 
+let weblinksEntwurf = []; // [{ _uid, label, url }], Arbeitskopie im Editor
+let weblinkUidZaehler = 0;
+let weblinkBearbeitenUid = null; // per Klick auf einen fertigen Weblink-Button wieder geöffnet
+
 // Ältere Daten hatten `optionen` als reines String-Array – hier auf das
 // neue { name, farbe }-Format anheben, damit bestehende Status (z.B. ein
 // schon angelegter "Langfristig") nicht verloren gehen.
@@ -356,6 +360,8 @@ function neuesProjekt() {
     bearbeitetesProjektId = null;
     checklisteEntwurf = [];
     kostenEntwurf = [];
+    weblinksEntwurf = [];
+    weblinkBearbeitenUid = null;
     ausgewaehlteDatei = null;
     dateiEntfernen = false;
 
@@ -374,6 +380,7 @@ function neuesProjekt() {
     renderStatusSelect(document.getElementById("inputStatus"), statusOptionen[0]?.name);
     renderChecklisteEditor();
     renderKostenEditor();
+    renderWeblinksEditor();
     renderDateiAnzeige(null);
 
     document.getElementById("editorOverlay").classList.remove("hidden");
@@ -390,6 +397,8 @@ function projektBearbeiten(id) {
     bearbeitetesProjektId = id;
     checklisteEntwurf = (projekt.checkliste || []).map(p => ({ ...p }));
     kostenEntwurf = (projekt.kostenpositionen || []).map(p => ({ ...p, _uid: neueKostenUid() }));
+    weblinksEntwurf = (projekt.weblinks || []).map(w => ({ ...w, _uid: neuerWeblinkUid() }));
+    weblinkBearbeitenUid = null;
     ausgewaehlteDatei = null;
     dateiEntfernen = false;
 
@@ -408,6 +417,7 @@ function projektBearbeiten(id) {
     renderStatusSelect(document.getElementById("inputStatus"), projekt.status);
     renderChecklisteEditor();
     renderKostenEditor();
+    renderWeblinksEditor();
     renderDateiAnzeige(projekt);
 
     document.getElementById("editorOverlay").classList.remove("hidden");
@@ -634,6 +644,102 @@ function kostenDragEnd(event) {
 
 }
 
+// --- Weblinks ---
+//
+// Jeder Weblink ist entweder gerade in Bearbeitung (zwei Eingabefelder)
+// oder - sobald Beschriftung UND URL ausgefüllt sind und das Feld nicht
+// mehr fokussiert ist - als anklickbarer Button dargestellt.
+
+function neuerWeblinkUid() {
+    return "w" + (weblinkUidZaehler++);
+}
+
+function weblinkIstBearbeitung(w) {
+    return weblinkBearbeitenUid === w._uid || !(w.label.trim() && w.url.trim());
+}
+
+function renderWeblinksEditor() {
+
+    document.getElementById("weblinksListe").innerHTML = weblinksEntwurf.map(w => {
+
+        if (weblinkIstBearbeitung(w)) {
+            return `
+                <div class="weblink-zeile">
+                    <div class="weblink-eingabe">
+                        <input type="text" value="${escapeHtml(w.label)}" placeholder="Beschriftung" oninput="window.weblinkGeaendert('${w._uid}', 'label', this.value)" onblur="window.weblinkFeldVerlassen()">
+                        <input type="url" value="${escapeHtml(w.url)}" placeholder="https://…" oninput="window.weblinkGeaendert('${w._uid}', 'url', this.value)" onblur="window.weblinkFeldVerlassen()">
+                    </div>
+                    <button type="button" class="entfernen-button" onclick="window.weblinkEntfernen('${w._uid}')">✕</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="weblink-zeile weblink-zeile-fertig">
+                <a class="weblink-button" href="${escapeHtml(w.url)}" target="_blank" rel="noopener" title="Zum Bearbeiten klicken, mit Strg/Cmd zum Öffnen" onclick="event.preventDefault(); window.weblinkBearbeitenOeffnen('${w._uid}')">🔗 ${escapeHtml(w.label)}</a>
+                <button type="button" class="entfernen-button" onclick="window.weblinkEntfernen('${w._uid}')">✕</button>
+            </div>
+        `;
+
+    }).join("");
+
+}
+
+function weblinkHinzufuegen() {
+
+    const uid = neuerWeblinkUid();
+    weblinksEntwurf.push({ _uid: uid, label: "", url: "" });
+    weblinkBearbeitenUid = uid;
+
+    renderWeblinksEditor();
+    document.querySelector("#weblinksListe .weblink-eingabe input")?.focus();
+
+}
+
+function weblinkGeaendert(uid, feld, wert) {
+    const w = weblinksEntwurf.find(w => w._uid === uid);
+    if (w) {
+        w[feld] = wert;
+    }
+}
+
+function weblinkBearbeitenOeffnen(uid) {
+    weblinkBearbeitenUid = uid;
+    renderWeblinksEditor();
+}
+
+// Verzögert, damit der Wechsel zwischen Beschriftung- und URL-Feld
+// innerhalb derselben Zeile (per Tab/Klick) nicht durch ein Neu-Rendern
+// mitten im Fokuswechsel unterbrochen wird.
+let weblinkBlurTimeout = null;
+
+function weblinkFeldVerlassen() {
+
+    clearTimeout(weblinkBlurTimeout);
+
+    weblinkBlurTimeout = setTimeout(() => {
+
+        if (!document.activeElement?.closest(".weblink-eingabe")) {
+            weblinkBearbeitenUid = null;
+            renderWeblinksEditor();
+        }
+
+    }, 150);
+
+}
+
+function weblinkEntfernen(uid) {
+
+    weblinksEntwurf = weblinksEntwurf.filter(w => w._uid !== uid);
+
+    if (weblinkBearbeitenUid === uid) {
+        weblinkBearbeitenUid = null;
+    }
+
+    renderWeblinksEditor();
+
+}
+
 function renderDateiAnzeige(projekt) {
 
     const box = document.getElementById("dateiAnzeige");
@@ -696,6 +802,9 @@ async function projektSpeichern() {
             .map(({ _uid, ...rest }) => rest),
         status: document.getElementById("inputStatus").value,
         checkliste: checklisteEntwurf.filter(p => p.text.trim() !== ""),
+        weblinks: weblinksEntwurf
+            .filter(w => w.label.trim() !== "" && w.url.trim() !== "")
+            .map(({ _uid, ...rest }) => rest),
         startDatum: startDatum || deleteField(),
         endDatum: endDatum || deleteField(),
         verschiebeStart: verschiebeStart || deleteField(),
@@ -1009,6 +1118,11 @@ window.kostenDragStart = kostenDragStart;
 window.kostenDragOver = kostenDragOver;
 window.kostenDragDrop = kostenDragDrop;
 window.kostenDragEnd = kostenDragEnd;
+window.weblinkHinzufuegen = weblinkHinzufuegen;
+window.weblinkGeaendert = weblinkGeaendert;
+window.weblinkBearbeitenOeffnen = weblinkBearbeitenOeffnen;
+window.weblinkFeldVerlassen = weblinkFeldVerlassen;
+window.weblinkEntfernen = weblinkEntfernen;
 window.dateiEntfernenKlick = dateiEntfernenKlick;
 window.projektSpeichern = projektSpeichern;
 window.projektLoeschen = projektLoeschen;

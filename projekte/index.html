@@ -31,15 +31,14 @@
                 <button class="icon-btn" onclick="window.hilfeSchliessen()">✕</button>
             </div>
             <p>
-                Klicke auf ein Projekt, um es zu bearbeiten. Der Status
-                lässt sich direkt im Dropdown ändern, ohne den Editor zu
-                öffnen. Am Griff ⠿ links kannst du ein Projekt an eine
-                andere Stelle ziehen. Über das ⚙-Symbol oben kannst du die
-                Status-Liste samt Farben selbst anpassen.
+                Klick auf ein Projekt zum Bearbeiten. Status direkt im
+                Dropdown änderbar. Am Griff ⠿ verschieben. ⚙ oben =
+                Status-Liste &amp; Farben anpassen. Im Editor lassen sich
+                auch Weblinks hinterlegen (werden zu anklickbaren
+                Buttons).
                 <br><br>
-                Gelöschte Projekte landen zunächst ausgegraut im Papierkorb
-                unten – von dort kannst du sie wiederherstellen (↺) oder
-                endgültig löschen (🗑).
+                Gelöscht = ausgegraut im Papierkorb unten (↺
+                wiederherstellen, 🗑 endgültig löschen).
             </p>
         </div>
     </div>
@@ -130,6 +129,10 @@
                 <label>Datei (z.B. Offerte)</label>
                 <div id="dateiAnzeige" class="datei-anzeige"></div>
                 <input type="file" id="inputDatei">
+
+                <label>Weblinks (optional)</label>
+                <div id="weblinksListe" class="weblinks-liste"></div>
+                <button type="button" class="add-button" onclick="window.weblinkHinzufuegen()">+ Weblink hinzufügen</button>
 
                 <h3 class="form-abschnitt-titel">Abklärungen</h3>
 
