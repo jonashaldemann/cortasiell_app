@@ -116,8 +116,13 @@ h1 {
 }
 
 .zeile-text {
-    flex: 1 1 160px;
-    min-width: 100px;
+    /* flex-grow bewusst 0: soll sich nur auf seinen Inhalt einrichten
+       (kurzer Text bleibt kompakt) statt gierig verfügbaren Platz zu
+       füllen - das drängte vorher Tag/Löschen-Button auch bei kurzen
+       Einträgen unnötig in die nächste Zeile. Schrumpft bei langem
+       Text bis zur Mindestbreite, danach bricht die Zeile um. */
+    flex: 0 1 auto;
+    min-width: 60px;
     font-size: 0.95rem;
     word-break: break-word;
 }
