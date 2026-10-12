@@ -62,6 +62,7 @@ const LABEL_GROESSE = 130;
 const LANE_PITCH = 28; // px zwischen zwei gestapelten Balken (Höhe horizontal)
 const NOTIZ_MARKER_BREITE = 20; // px, Diamant + Lücke vor dem Text
 const NOTIZ_ZEICHEN_BREITE = 6; // px, grobe Breite pro Zeichen des Notiz-Labels
+const NOTIZ_PUNKT_BREITE = 12; // px, muss zur Breite von .zl-notiz-punkt passen
 
 let ereignisse = [];
 let tageDaten = {}; // "YYYY-MM-DD" -> { personen: string[], aktivitaet: string }
@@ -566,8 +567,14 @@ function punktStil(idx, lane = 0) {
     const start = idx * zellGroesse;
     const quer = 6 + lane * LANE_PITCH;
 
+    // Horizontal in der Zellenmitte statt an der linken Gitterlinie -
+    // sonst klebt der Diamant optisch am Rand des Vortags (siehe Feedback).
+    // NOTIZ_PUNKT_BREITE muss zur Breite von .zl-notiz-punkt in style.css
+    // passen.
+    const mitteHorizontal = start + zellGroesse / 2 - NOTIZ_PUNKT_BREITE / 2;
+
     return istHorizontal()
-        ? `left:${start}px; top:${quer}px;`
+        ? `left:${mitteHorizontal}px; top:${quer}px;`
         : `top:${start}px; left:${quer}px;`;
 
 }
