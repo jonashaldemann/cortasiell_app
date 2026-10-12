@@ -12,7 +12,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { verschiebbarMachen } from "../shared/drag-reorder.js";
 
-let alleEintraege = []; // [{ id, text, erledigt, reihenfolge, angepinnterName }]
+// Gleiches Apps-Script-Deployment wie Inventar/Menüplan (siehe
+// inventar/app.js) - der normale doGet() ohne aktion-Parameter liefert die
+// komplette Inventarliste inkl. erfassungstyp/info, die hier nur noch
+// client-seitig gefiltert wird (siehe istAlsFehlendMarkiert()).
+const INVENTAR_APPS_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbyVwnfs4p18AwLoe6nPTRh6Du6nZTD8B7PnPYpmR2etwV8bAZz4csgj0P7cglCt99Rtyw/exec";
+
+let alleEintraege = []; // [{ id, text, erledigt, reihenfolge, angepinnterName, inventarZeile }]
 let bearbeiteterNamePinId = null;
 let bearbeitetesTextId = null;
 let aktiverFilterName = null;
@@ -273,6 +280,104 @@ async function elementHinzufuegen() {
 
 }
 
+// Deckt sich bewusst NICHT mit istVorhanden() in inventar/apps_script.js
+// (das fragt "ist es vorhanden?") - hier geht es um "fehlt es?", und zwar
+// nur für die drei explizit genannten Ja/Nein-Fragetypen (nicht für
+// "vorhanden", das meist Einrichtung/Ausstattung statt Einkaufsliste-
+// taugliche Vorräte betrifft).
+function istAlsFehlendMarkiert(erfassungstyp, info) {
+
+    const typ = String(erfassungstyp || "").trim();
+    const wert = String(info ?? "").trim().toLowerCase();
+
+    if (typ === "Menge") {
+        return !(Number(info) > 0);
+    }
+
+    if (typ === "genügend" || /^Minimum\s+\d/i.test(typ)) {
+        return wert === "nein";
+    }
+
+    return false;
+
+}
+
+async function inventarFehlendesHolen() {
+
+    const button = document.getElementById("inventarHolenButton");
+    const urspruenglicherText = button.textContent;
+
+    button.disabled = true;
+    button.textContent = "Lädt …";
+
+    try {
+
+        const antwort = await fetch(INVENTAR_APPS_SCRIPT_URL);
+
+        if (!antwort.ok) {
+            throw new Error("Status " + antwort.status);
+        }
+
+        const inventar = await antwort.json();
+
+        const fehlend = inventar.filter(zeile => zeile.produkt && istAlsFehlendMarkiert(zeile.erfassungstyp, zeile.info));
+
+        // Zeilen, die schon einmal (egal ob noch offen oder bereits
+        // abgehakt) aus dem Inventar übernommen wurden, nicht nochmal
+        // hinzufügen - sonst würde jeder erneute Klick Duplikate anlegen.
+        const bereitsUebernommeneZeilen = new Set(
+            alleEintraege.filter(e => e.inventarZeile !== undefined).map(e => e.inventarZeile)
+        );
+
+        const neueEintraege = fehlend.filter(zeile => !bereitsUebernommeneZeilen.has(zeile.zeile));
+
+        if (neueEintraege.length === 0) {
+            alert(fehlend.length === 0
+                ? "Aktuell ist laut Inventar nichts als fehlend markiert."
+                : "Alle als fehlend markierten Produkte stehen schon auf der Liste.");
+            return;
+        }
+
+        let naechsteReihenfolge = alleEintraege.reduce((max, e) => Math.max(max, e.reihenfolge ?? 0), -1) + 1;
+        const batch = writeBatch(db);
+
+        neueEintraege.forEach(zeile => {
+
+            const neueId = doc(collection(db, "einkaufsliste")).id;
+
+            const daten = {
+                text: zeile.produkt,
+                erledigt: false,
+                reihenfolge: naechsteReihenfolge++,
+                inventarZeile: zeile.zeile
+            };
+
+            if (aktiverFilterName) {
+                daten.angepinnterName = aktiverFilterName;
+            }
+
+            batch.set(doc(db, "einkaufsliste", neueId), daten);
+
+        });
+
+        await batch.commit();
+
+        alert(`${neueEintraege.length} fehlende Produkt(e) aus dem Inventar hinzugefügt.`);
+
+    } catch (fehler) {
+
+        console.error("Fehlendes aus Inventar holen fehlgeschlagen:", fehler);
+        alert("Fehlendes aus dem Inventar holen ist fehlgeschlagen: " + fehler.message);
+
+    } finally {
+
+        button.disabled = false;
+        button.textContent = urspruenglicherText;
+
+    }
+
+}
+
 async function erledigtGeaendert(id, erledigt) {
     await setDoc(doc(db, "einkaufsliste", id), { erledigt }, { merge: true });
 }
@@ -369,6 +474,7 @@ function hilfeSchliessen() {
 window.hilfeOeffnen = hilfeOeffnen;
 window.hilfeSchliessen = hilfeSchliessen;
 window.elementHinzufuegen = elementHinzufuegen;
+window.inventarFehlendesHolen = inventarFehlendesHolen;
 window.erledigtGeaendert = erledigtGeaendert;
 window.elementLoeschen = elementLoeschen;
 window.erledigteLoeschen = erledigteLoeschen;

@@ -41,6 +41,11 @@
                     löschen – erst danach per "Alle löschen" entfernbar.
                     Text antippen zum Ändern. 📌 = Name zuweisen, oben
                     danach filterbar. Am Griff ⠿ verschieben.
+                    <br><br>
+                    "Fehlendes aus Inventar holen" trägt alle im Inventar
+                    als fehlend markierten Produkte ein (Minimum/Menge/
+                    genügend = nein bzw. 0) – bereits übernommene Produkte
+                    werden dabei nicht doppelt hinzugefügt.
                 </p>
             </div>
         </div>
@@ -54,6 +59,8 @@
             >
             <button onclick="window.elementHinzufuegen()">Hinzufügen</button>
         </div>
+
+        <button id="inventarHolenButton" class="inventar-holen-button" onclick="window.inventarFehlendesHolen()">⬇ Fehlendes aus Inventar holen</button>
 
         <div id="filterLeiste" class="filter-reihe"></div>
 

@@ -64,6 +64,25 @@ h1 {
     box-sizing: border-box;
 }
 
+.inventar-holen-button {
+    width: 100%;
+    margin: 0 0 16px;
+    padding: 10px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px dashed var(--border);
+    font-family: var(--font-medium);
+    font-size: 0.9rem;
+}
+
+.inventar-holen-button:hover {
+    background: var(--border);
+}
+
+.inventar-holen-button:disabled {
+    opacity: 0.6;
+}
+
 .hinzufuegen-reihe button {
     width: auto;
     margin-top: 0;

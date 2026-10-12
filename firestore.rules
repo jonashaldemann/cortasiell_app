@@ -49,7 +49,7 @@ service cloud.firestore {
       allow read: if true;
       allow delete: if true;
       allow create, update: if request.resource.data.keys().hasOnly(
-          ['text', 'erledigt', 'reihenfolge', 'angepinnterName', 'link'])
+          ['text', 'erledigt', 'reihenfolge', 'angepinnterName', 'link', 'inventarZeile'])
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 200
         && request.resource.data.reihenfolge is number
