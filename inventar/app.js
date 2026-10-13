@@ -262,6 +262,16 @@ function zeigeFrage() {
 
     if (typ === "Menge") {
 
+        // Wurde diese Zeile schon in dieser Sitzung beantwortet (z.B. vor
+        // einem Zurück/Vor), zeigt das Feld den eigenen Wert statt wieder
+        // den ursprünglichen Sheet-Wert - sonst sieht es so aus, als wäre
+        // die Eingabe beim Navigieren verloren gegangen (siehe Feedback).
+        const vorhandeneAntwort =
+            bereitsBeantwortet(frage.zeile);
+
+        const anzeigeWert =
+            vorhandeneAntwort ? vorhandeneAntwort.wert : (frage.info || 0);
+
         document.getElementById("frage").innerHTML = `
             <h2><span class="produkt">${frage.produkt}</span></h2>
 
@@ -269,9 +279,10 @@ function zeigeFrage() {
                 <input
                     type="number"
                     id="anzahlFeld"
-                    value="${frage.info || 0}"
+                    value="${anzeigeWert}"
                     min="0"
                     onfocus="this.select()"
+                    oninput="anzahlLaufendSpeichern(this.value)"
                 >
                 <span class="einheit-suffix">${frage.einheit}</span>
             </div>
@@ -414,6 +425,13 @@ function speichereAntwort(zeile, wert) {
 
 }
 
+// Für die Anzeige beim erneuten Besuch einer Frage (per Zurück/Vor):
+// schon diese Sitzung beantwortete Zeilen sollen den eigenen Wert zeigen,
+// nicht den ursprünglichen Sheet-Wert.
+function bereitsBeantwortet(zeile) {
+    return inventur.find(eintrag => eintrag.zeile === zeile);
+}
+
 
 function antwortUnveraendert() {
 
@@ -493,6 +511,17 @@ function speichereNeuerEintrag() {
     // Fortschritt der eigentlichen Inventur bleibt unangetastet.
     zeigeFrage();
 
+}
+
+// Läuft bei jedem Tastendruck im Mengen-Feld mit (statt den Wert nur beim
+// Klick auf "Speichern & Weiter" auszulesen) - deckt zwei Probleme ab, die
+// sich in der Praxis als "Eingabe nach Zurück/Vor weg" gezeigt haben
+// (siehe Feedback): 1) "Zurück"/"Vor" lasen den Feldwert bisher nie aus,
+// 2) auf Android kann der Klick auf einen Button das letzte Zeichen aus
+// dem Eingabefeld überholen (Tastatur noch nicht fertig verarbeitet),
+// wodurch selbst "Speichern & Weiter" einen veralteten Wert liest.
+function anzahlLaufendSpeichern(wert) {
+    speichereAntwort(fragen[aktuelleFrage].zeile, wert);
 }
 
 function speichereAnzahl() {
